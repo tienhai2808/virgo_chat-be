@@ -1,18 +1,14 @@
 import bcrypt from "bcryptjs";
-import dotenv from "dotenv";
-import jwt from "jsonwebtoken";
+import axios from "axios";
 
 import User from "../models/user.model.js";
-import { generateToken, generateOTP } from "../lib/utils.js";
 import cloudinary from "../lib/cloudinary.js";
-import { convertFullName } from "../lib/utils.js";
-
-dotenv.config();
+import { convertFullName, oauth2client, generateToken } from "../lib/utils.js";
 
 export const signup = async (req, res) => {
-  const { phoneNumber, fullName, password } = req.body;
+  const { email, fullName, password } = req.body;
   try {
-    if (!phoneNumber || !fullName || !password) {
+    if (!email || !fullName || !password) {
       return res
         .status(400)
         .json({ message: "Tất cả các trường đều bắt buộc" });
@@ -33,7 +29,7 @@ export const signup = async (req, res) => {
     const userName = await convertFullName(fullName);
 
     const newUser = new User({
-      phoneNumber,
+      email,
       fullName,
       userName,
       password: hashedPassword,
@@ -96,12 +92,42 @@ export const logout = (req, res) => {
   }
 };
 
-export const googleCallBack = async (req, res) => {
+export const loginGoogle = async (req, res) => {
   try {
-    generateToken(req.user._id, res);
-    res.redirect("http://localhost:3000");
+    const { code } = req.query;
+    const googleRes = await oauth2client.getToken(code);
+    oauth2client.setCredentials(googleRes.tokens);
+
+    const userRes = await axios.get(
+      `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
+    );
+
+    const { email, name, picture } = userRes.data;
+
+    let user = await User.findOne({ email }).select("-password");
+
+    if (!user) {
+      const userName = await convertFullName(name);
+
+      user = await User.create({
+        email,
+        fullName: name,
+        userName,
+        avatar: picture,
+      });
+
+      user = user.toObject();
+      delete user.password;
+    }
+
+    const token = generateToken(user._id, res);
+
+    res.status(200).json({
+      token,
+      user,
+    });
   } catch (err) {
-    console.log(`Lỗi xử lý đăng nhập: ${err.message}`);
+    console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
