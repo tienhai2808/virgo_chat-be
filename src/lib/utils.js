@@ -18,7 +18,7 @@ export const generateToken = (userId, res) => {
 };
 
 export const convertFullName = async (fullName) => {
-  let userName = fullName.toLowerCase().replace(/\s+/g, "");
+  let userName = fullName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
   let existingUser = await User.findOne({ userName });
   while (existingUser) {
     const randomNumber = Math.floor(1000 + Math.random() * 9000);
@@ -26,7 +26,7 @@ export const convertFullName = async (fullName) => {
     existingUser = await User.findOne({ userName });
   }
 
-  return fullName;
+  return userName;
 };
 
 export const generateOTP = () => {

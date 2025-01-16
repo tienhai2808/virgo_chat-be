@@ -8,7 +8,6 @@ import session from "express-session"
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
-import googleRoutes from "./routes/google.route.js";
 import "./config/passport.config.js"
 
 dotenv.config();
@@ -36,7 +35,6 @@ app.use(passport.session());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/message", messageRoutes);
-app.use("/auth", googleRoutes)
 
 app.listen(PORT, () => {
   console.log(`http://localhost:${PORT}`);

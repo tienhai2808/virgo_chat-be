@@ -1,5 +1,5 @@
 {
-  "name": "virgo_chat-BE",
+  "name": "virgo_chat-be",
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {

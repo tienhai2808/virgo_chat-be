@@ -1,26 +1,31 @@
+import { parse } from "dotenv";
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
+      default: null,
       unique: true,
-      default: "",
+      sparse: true,
     },
     googleId: {
       type: String,
-      unique: true,
-      default: "",
+      default: null,
+      unique: true, 
+      sparse: true,
     },
     faceId: {
       type: String, 
+      default: null,
       unique: true,
-      default: "",
+      sparse: true,
     },
     phoneNumber: {
-      type: String,
-      unique: true, 
-      default: "",
+      type: String, 
+      default: null,
+      unique: true,
+      sparse: true,
     },
     fullName: {
       type: String,
