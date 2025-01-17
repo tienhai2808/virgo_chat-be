@@ -1,9 +1,16 @@
 import bcrypt from "bcryptjs";
 import axios from "axios";
+import cosineSimilarity from "cosine-similarity";
 
 import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary.js";
-import { convertFullName, oauth2client, generateToken } from "../lib/utils.js";
+import {
+  convertFullName,
+  oauth2client,
+  generateToken,
+  extractFaceEmbeddings,
+  compareEmbeddings,
+} from "../lib/utils.js";
 
 export const signup = async (req, res) => {
   const { email, fullName, password } = req.body;
@@ -18,7 +25,7 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Mật khẩu phải lớn hơn 6 ký tự" });
     }
 
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: "Email đã tồn tại" });
     }
@@ -38,8 +45,8 @@ export const signup = async (req, res) => {
     if (newUser) {
       const token = generateToken(newUser._id, res);
 
-      const savedUser = await newUser.save();
-      const { password, ...userWithoutPassword } = savedUser.toObject();
+      user = await newUser.save();
+      const { password, ...userWithoutPassword } = user.toObject();
 
       res.status(201).json({
         token,
@@ -63,7 +70,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Người dùng không tồn tại" });
     }
 
-    if (!user.password) {
+    if (user.accountType === "google") {
       return res
         .status(400)
         .json({ message: "Email phải đăng nhập bằng Google" });
@@ -75,12 +82,11 @@ export const login = async (req, res) => {
     }
 
     const token = generateToken(user._id, res);
-    user = user.toObject();
-    delete user.password;
+    const { password: _, ...userWithoutPassword } = user.toObject();
 
     res.status(200).json({
       token,
-      user,
+      user: userWithoutPassword,
     });
   } catch (err) {
     console.log(`Lỗi xử lý đăng nhập: ${err.message}`);
@@ -100,7 +106,7 @@ export const logout = (req, res) => {
 
 export const loginGoogle = async (req, res) => {
   try {
-    const { code } = req.query;
+    const { code } = req.body;
 
     if (!code) {
       return res.status(400).json({ message: "Yêu cầu code" });
@@ -120,16 +126,25 @@ export const loginGoogle = async (req, res) => {
     if (!user) {
       const userName = await convertFullName(name);
 
-      user = await User.create({
+      const newUser = new User({
         email,
         googleId,
+        accountType: "google",
         fullName: name,
         userName,
         avatar: picture,
       });
+
+      if (newUser) {
+        user = await newUser.save();
+      } else {
+        return res
+          .status(400)
+          .json({ message: "Dữ liệu người dùng không hợp lệ" });
+      }
     }
 
-    if (!user.googleId) {
+    if (!user.accountType === "google") {
       return res
         .status(400)
         .json({ message: "Email đã được đăng ký, vui lòng nhập mật khẩu" });
@@ -137,9 +152,11 @@ export const loginGoogle = async (req, res) => {
 
     const token = generateToken(user._id, res);
 
-    res.status(200).json({
+    const { googleId: _, ...userWithoutGoogleId } = user.toObject();
+
+    res.status(201).json({
       token,
-      user,
+      user: userWithoutGoogleId,
     });
   } catch (err) {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
@@ -156,36 +173,187 @@ export const loginFacebook = async (req, res) => {
     }
 
     const userRes = await axios.get(
-      `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`
+      `https://graph.facebook.com/me?access_token=${accessToken}&fields=id,name,picture`
     );
-    const { email, id: facebookId, name, picture } = userRes.data;
-    
-  } catch (err) {}
-};
+    const { id: facebookId, name, picture } = userRes.data;
 
-export const getProfile = async (req, res) => {
-  try {
-    res.status(200).json(req.user);
+    let user = await User.findOne({ facebookId });
+
+    if (!user) {
+      const userName = await convertFullName(name);
+
+      const newUser = new User({
+        facebookId,
+        accountType: "facebook",
+        fullName: name,
+        userName,
+        avatar: picture.data.is_silhouette ? undefined : picture.data.url,
+      });
+
+      if (newUser) {
+        user = await newUser.save();
+      } else {
+        return res
+          .status(400)
+          .json({ message: "Dữ liệu người dùng không hợp lệ" });
+      }
+    }
+
+    const token = generateToken(user._id, res);
+
+    const { facebookId: _, ...userWithoutFacebookId } = user.toObject();
+
+    res.status(200).json({
+      token,
+      user: userWithoutFacebookId,
+    });
   } catch (err) {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
-export const updateProfile = async (req, res) => {
+export const loginFaceId = async (req, res) => {
+  try {
+    const { faceId } = req.body;
+
+    if (!faceId) {
+      return res.status(400).json({ message: "Ảnh FaceID là bắt buộc." });
+    }
+
+    const uploadedEmbeddings = await extractFaceEmbeddings(faceId);
+
+    const users = await User.find({
+      "face.faceEmbeddings": { $exists: true },
+    }).select("-password");
+
+    let user = null;
+    for (const check_user of users) {
+      const storedEmbeddings = check_user.face.faceEmbeddings;
+
+      const cosineSimilarity = compareEmbeddings(
+        uploadedEmbeddings,
+        storedEmbeddings
+      );
+
+      if (cosineSimilarity >= 0.8) {
+        user = check_user;
+        break;
+      }
+    }
+
+    if (!user) {
+      return res.status(400).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    const token = generateToken(user._id, res);
+
+    res.status(200).json({
+      token,
+      user,
+    });
+  } catch (err) {
+    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateAvatar = async (req, res) => {
   try {
     const { avatar } = req.body;
     const userId = req.user._id;
 
     if (!avatar) {
-      return res.status(400).json({ message: "Avatar là bắt buộc" });
+      return res.status(400).json({ message: "Yêu cầu avatar" });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(avatar);
+    const user = await User.findById(userId);
+
+    if (user.avatar) {
+      const publicId = user.avatar.split("/").slice(-2).join("/").split(".")[0];
+      await cloudinary.uploader.destroy(publicId);
+    }
+
+    const uploadResponse = await cloudinary.uploader.upload(avatar, {
+      public_id: `user_${userId}_avatar`,
+      folder: "users/avatars",
+    });
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { avatar: uploadResponse.secure_url },
+      { new: true }
+    );
+
+    res.status(200).json(updatedUser);
+  } catch (err) {
+    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateInfo = async (req, res) => {
+  try {
+    const { fullName, userName } = req.body;
+    const userId = req.user._id;
+
+    if (userName) {
+      const checkUserName = await User.findOne({ userName });
+      if (checkUserName) {
+        return res.status(400).json({ message: "Tên người dùng đã tồn tại" });
+      }
+    }
+
+    const updateFields = {};
+    if (fullName) updateFields.fullName = fullName;
+    if (userName) updateFields.userName = userName;
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateFields, {
+      new: true,
+    });
+
+    res.status(200).json(updatedUser);
+  } catch (err) {
+    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateFaceId = async (req, res) => {
+  try {
+    const { faceId } = req.body;
+    const userId = req.user._id;
+
+    if (!faceId) {
+      return res.status(400).json({ message: "faceId là bắt buộc" });
+    }
+
+    const user = await User.findById(userId);
+
+    if (user.face && user.face.faceUrl) {
+      const publicId = user.face.faceUrl
+        .split("/")
+        .slice(-2)
+        .join("/")
+        .split(".")[0];
+      await cloudinary.uploader.destroy(publicId);
+    }
+
+    const uploadResponse = await cloudinary.uploader.upload(faceId, {
+      public_id: `user_${userId}_faceid`,
+      folder: "users/faceids",
+    });
+
+    const embeddings = await extractFaceEmbeddings(uploadResponse.secure_url);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        face: {
+          faceUrl: uploadResponse.secure_url,
+          faceEmbeddings: embeddings,
+        },
+      },
       { new: true }
     );
 

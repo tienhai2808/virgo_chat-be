@@ -4,13 +4,26 @@ const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
-      unique: true,
-      required: true,
-    },
-    faceId: {
-      type: String,
-      unique: true,
       sparse: true,
+      unique: true,
+      required: function () {
+        return !this.facebookId
+      }
+    },
+    face: {
+      faceUrl: {
+        type: String,
+        unique: true,
+        sparse: true,
+      },
+      faceEmbeddings: {
+        type: [Number],
+        unique: true,
+        sparse: true,
+        required: function () {
+          return this.faceId.faceIdUrl
+        }
+      }
     },
     googleId: {
       type: String,
@@ -21,6 +34,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       unique: true,
       sparse: true,
+    },
+    accountType: {
+      type: String,
+      enum: ["virgo", "google", "facebook"],
+      default: "virgo",
     },
     fullName: {
       type: String,
