@@ -1,16 +1,25 @@
-import { parse } from "dotenv";
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
-      default: null,
-      sparse: true,
+      unique: true,
+      required: true,
     },
     faceId: {
-      type: String, 
-      default: null,
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    facebookId: {
+      type: String,
+      unique: true,
       sparse: true,
     },
     fullName: {
@@ -24,13 +33,13 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      default: null,
-      sparse: true,
       minlength: 6,
+      required: function () {
+        return !this.googleId && !this.facebookId
+      }
     },
     avatar: {
       type: String,
-      default: null,
       sparse: true,
     },
   },

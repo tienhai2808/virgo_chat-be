@@ -1,7 +1,6 @@
 import express from "express";
-import passport from "passport";
 
-import { signup, login, logout, updateProfile, getProfile, loginGoogle } from "../controllers/auth.controller.js";
+import { signup, login, logout, updateProfile, getProfile, loginGoogle, loginFacebook } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -11,6 +10,7 @@ router.post("/login", login);
 router.post("/logout", logout);
 
 router.get("/google", loginGoogle);
+router.get("/facebook", loginFacebook);
 
 router.get("/profile", protectRoute, getProfile);
 

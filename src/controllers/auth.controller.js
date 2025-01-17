@@ -36,14 +36,14 @@ export const signup = async (req, res) => {
     });
 
     if (newUser) {
-      generateToken(newUser._id, res);
-      await newUser.save();
+      const token = generateToken(newUser._id, res);
+
+      const savedUser = await newUser.save();
+      const { password, ...userWithoutPassword } = savedUser.toObject();
 
       res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        userName: newUser.userName,
-        avatar: newUser.avatar,
+        token,
+        user: userWithoutPassword,
       });
     } else {
       res.status(400).json({ message: "Dữ liệu người dùng không hợp lệ" });
@@ -55,12 +55,18 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { phoneNumber, password } = req.body;
+  const { email, password } = req.body;
   try {
-    const user = await User.findOne({ phoneNumber });
+    let user = await User.findOne({ email });
 
     if (!user) {
       return res.status(400).json({ message: "Người dùng không tồn tại" });
+    }
+
+    if (!user.password) {
+      return res
+        .status(400)
+        .json({ message: "Email phải đăng nhập bằng Google" });
     }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
@@ -68,13 +74,13 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Mật khẩu không khớp" });
     }
 
-    generateToken(user._id, res);
+    const token = generateToken(user._id, res);
+    user = user.toObject();
+    delete user.password;
 
     res.status(200).json({
-      _id: user._id,
-      fullName: user.fullName,
-      userName: user.userName,
-      avatar: user.avatar,
+      token,
+      user,
     });
   } catch (err) {
     console.log(`Lỗi xử lý đăng nhập: ${err.message}`);
@@ -95,6 +101,11 @@ export const logout = (req, res) => {
 export const loginGoogle = async (req, res) => {
   try {
     const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).json({ message: "Yêu cầu code" });
+    }
+
     const googleRes = await oauth2client.getToken(code);
     oauth2client.setCredentials(googleRes.tokens);
 
@@ -102,22 +113,26 @@ export const loginGoogle = async (req, res) => {
       `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
     );
 
-    const { email, name, picture } = userRes.data;
+    const { email, id: googleId, name, picture } = userRes.data;
 
-    let user = await User.findOne({ email }).select("-password");
+    let user = await User.findOne({ email });
 
     if (!user) {
       const userName = await convertFullName(name);
 
       user = await User.create({
         email,
+        googleId,
         fullName: name,
         userName,
         avatar: picture,
       });
+    }
 
-      user = user.toObject();
-      delete user.password;
+    if (!user.googleId) {
+      return res
+        .status(400)
+        .json({ message: "Email đã được đăng ký, vui lòng nhập mật khẩu" });
     }
 
     const token = generateToken(user._id, res);
@@ -130,6 +145,22 @@ export const loginGoogle = async (req, res) => {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
+};
+
+export const loginFacebook = async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({ message: "Yêu cầu access token" });
+    }
+
+    const userRes = await axios.get(
+      `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`
+    );
+    const { email, id: facebookId, name, picture } = userRes.data;
+    
+  } catch (err) {}
 };
 
 export const getProfile = async (req, res) => {
