@@ -10,20 +10,10 @@ const userSchema = new mongoose.Schema(
         return !this.facebookId
       }
     },
-    face: {
-      faceUrl: {
-        type: String,
-        unique: true,
-        sparse: true,
-      },
-      faceEmbeddings: {
-        type: [Number],
-        unique: true,
-        sparse: true,
-        required: function () {
-          return this.faceId.faceIdUrl
-        }
-      }
+    faceId: {
+      type: Array,
+      unique: true, 
+      sparse: true,
     },
     googleId: {
       type: String,

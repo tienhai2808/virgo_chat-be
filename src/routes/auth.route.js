@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   signup,
+  sendOTP,
   login,
   logout,
   loginGoogle,
@@ -10,12 +11,15 @@ import {
   updateAvatar,
   updateFaceId,
   updateInfo,
+  verifyOTP,
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.post("/signup", signup);
+router.post("/signup/send-otp", sendOTP);
+router.post("/signup/verify-otp", verifyOTP);
 router.post("/login", login);
 router.post("/logout", logout);
 

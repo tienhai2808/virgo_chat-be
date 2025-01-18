@@ -3,6 +3,7 @@ import { google } from "googleapis"
 import User from "../models/user.model.js";
 import faceapi from "face-api.js"
 
+
 export const generateToken = (userId, res) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
@@ -58,3 +59,10 @@ export const compareEmbeddings = (embedding1, embedding2) => {
   const cosineSimilarity = dotProduct / (norm1 * norm2);
   return cosineSimilarity;
 };
+
+export const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+
+

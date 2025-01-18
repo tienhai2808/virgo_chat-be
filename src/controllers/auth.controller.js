@@ -1,15 +1,16 @@
 import bcrypt from "bcryptjs";
 import axios from "axios";
-import cosineSimilarity from "cosine-similarity";
 
 import User from "../models/user.model.js";
+import OTP from "../models/otp.models.js";
 import cloudinary from "../lib/cloudinary.js";
+import { sendMailOTP } from "../services/email.service.js";
 import {
   convertFullName,
   oauth2client,
-  generateToken,
   extractFaceEmbeddings,
   compareEmbeddings,
+  generateOTP,
 } from "../lib/utils.js";
 
 export const signup = async (req, res) => {
@@ -43,20 +44,75 @@ export const signup = async (req, res) => {
     });
 
     if (newUser) {
-      const token = generateToken(newUser._id, res);
-
       user = await newUser.save();
       const { password, ...userWithoutPassword } = user.toObject();
 
-      res.status(201).json({
-        token,
-        user: userWithoutPassword,
-      });
+      res.status(201).json({ user: userWithoutPassword });
     } else {
       res.status(400).json({ message: "Dữ liệu người dùng không hợp lệ" });
     }
   } catch (err) {
     console.log(`Lỗi xử lý đăng ký: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const sendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const existingOTP = await OTP.findOne({ email });
+    if (existingOTP) {
+      return res
+        .status(400)
+        .json({ message: "OTP đã được gửi, vui lòng kiểm tra email của bạn." });
+    }
+
+    const otp = generateOTP();
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedOTP = await bcrypt.hash(otp, salt);
+
+    const newOTP = new OTP({
+      email,
+      otp: hashedOTP,
+    });
+
+    if (newOTP) {
+      await newOTP.save();
+
+      await sendMailOTP(email, otp);
+
+      res.status(200).json({ message: 'OTP đã được gửi thành công.' });
+    } else {
+      res.status(400).json({ message: "Dữ liệu OTP không hợp lệ" })
+    }
+  } catch (err) {
+    console.log(`Lỗi gửi OTP: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const otpRecord = await OTP.findOne({ email });
+
+    if (!otpRecord) {
+      return res.status(404).json({ message: 'Không tìm thấy OTP cho email này.' });
+    }
+
+    const isOTPCorrect = await bcrypt.compare(otp, otpRecord.otp);
+    if (!isOTPCorrect) {
+      return res.status(400).json({ message: 'OTP không đúng.' });
+    }
+
+    await otpRecord.deleteOne();
+
+    res.status(200).send({ message: "Xác thực OTP thành công" });
+  } catch (err) {
+    console.log(`Lỗi xác nhận OTP: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
@@ -81,13 +137,9 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Mật khẩu không khớp" });
     }
 
-    const token = generateToken(user._id, res);
     const { password: _, ...userWithoutPassword } = user.toObject();
 
-    res.status(200).json({
-      token,
-      user: userWithoutPassword,
-    });
+    res.status(200).json({ user: userWithoutPassword });
   } catch (err) {
     console.log(`Lỗi xử lý đăng nhập: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -150,14 +202,9 @@ export const loginGoogle = async (req, res) => {
         .json({ message: "Email đã được đăng ký, vui lòng nhập mật khẩu" });
     }
 
-    const token = generateToken(user._id, res);
-
     const { googleId: _, ...userWithoutGoogleId } = user.toObject();
 
-    res.status(201).json({
-      token,
-      user: userWithoutGoogleId,
-    });
+    res.status(200).json({ user: userWithoutGoogleId });
   } catch (err) {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -199,14 +246,9 @@ export const loginFacebook = async (req, res) => {
       }
     }
 
-    const token = generateToken(user._id, res);
-
     const { facebookId: _, ...userWithoutFacebookId } = user.toObject();
 
-    res.status(200).json({
-      token,
-      user: userWithoutFacebookId,
-    });
+    res.status(200).json({ user: userWithoutFacebookId });
   } catch (err) {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -246,12 +288,7 @@ export const loginFaceId = async (req, res) => {
       return res.status(400).json({ message: "Không tìm thấy người dùng" });
     }
 
-    const token = generateToken(user._id, res);
-
-    res.status(200).json({
-      token,
-      user,
-    });
+    res.status(200).json({ user });
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
