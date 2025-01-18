@@ -3,15 +3,16 @@ import axios from "axios";
 
 import User from "../models/user.model.js";
 import OTP from "../models/otp.models.js";
-import cloudinary from "../lib/cloudinary.js";
-import { sendMailOTP } from "../services/email.service.js";
+import cloudinary from "../config/cloudinary.js";
+import { oauth2client } from "../config/google.js";
+import { sendMail } from "../services/email.service.js";
 import {
   convertFullName,
-  oauth2client,
   extractFaceEmbeddings,
   compareEmbeddings,
   generateOTP,
-} from "../lib/utils.js";
+  generateToken,
+} from "../utils/auth.util.js";
 
 export const signup = async (req, res) => {
   const { email, fullName, password } = req.body;
@@ -45,6 +46,9 @@ export const signup = async (req, res) => {
 
     if (newUser) {
       user = await newUser.save();
+
+      generateToken(user._id, res);
+
       const { password, ...userWithoutPassword } = user.toObject();
 
       res.status(201).json({ user: userWithoutPassword });
@@ -81,7 +85,7 @@ export const sendOTP = async (req, res) => {
     if (newOTP) {
       await newOTP.save();
 
-      await sendMailOTP(email, otp);
+      await sendMail(email, otp);
 
       res.status(200).json({ message: 'OTP đã được gửi thành công.' });
     } else {
@@ -136,6 +140,8 @@ export const login = async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Mật khẩu không khớp" });
     }
+
+    generateToken(user._id, res);
 
     const { password: _, ...userWithoutPassword } = user.toObject();
 
@@ -202,11 +208,13 @@ export const loginGoogle = async (req, res) => {
         .json({ message: "Email đã được đăng ký, vui lòng nhập mật khẩu" });
     }
 
+    generateToken(user._id, res);
+
     const { googleId: _, ...userWithoutGoogleId } = user.toObject();
 
     res.status(200).json({ user: userWithoutGoogleId });
   } catch (err) {
-    console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
+    console.log(`Lỗi ở đăng nhập bằng Google: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
@@ -245,6 +253,8 @@ export const loginFacebook = async (req, res) => {
           .json({ message: "Dữ liệu người dùng không hợp lệ" });
       }
     }
+
+    generateToken(user._id, res);
 
     const { facebookId: _, ...userWithoutFacebookId } = user.toObject();
 
@@ -287,6 +297,8 @@ export const loginFaceId = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Không tìm thấy người dùng" });
     }
+
+    generateToken(user._id, res);
 
     res.status(200).json({ user });
   } catch (err) {

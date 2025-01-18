@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import { google } from "googleapis"
 import User from "../models/user.model.js";
 import faceapi from "face-api.js"
 
@@ -30,12 +29,6 @@ export const convertFullName = async (fullName) => {
 
   return userName;
 };
-
-export const oauth2client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  'postmessage'
-)
 
 export const extractFaceEmbeddings = async (imageUrl) => {
   const img = await faceapi.fetchImage(imageUrl);
