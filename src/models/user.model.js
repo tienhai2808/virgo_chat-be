@@ -4,11 +4,8 @@ const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
-      sparse: true,
       unique: true,
-      required: function () {
-        return !this.facebookId
-      }
+      required: true,
     },
     faceId: {
       type: Array,
@@ -20,14 +17,9 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
-    facebookId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
     accountType: {
       type: String,
-      enum: ["virgo", "google", "facebook"],
+      enum: ["virgo", "google"],
       default: "virgo",
     },
     fullName: {
@@ -43,7 +35,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: 6,
       required: function () {
-        return !this.googleId && !this.facebookId
+        return !this.googleId 
       }
     },
     avatar: {

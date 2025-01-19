@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
-import faceapi from "face-api.js"
 
 
 export const generateToken = (userId, res) => {
@@ -30,32 +29,7 @@ export const convertFullName = async (fullName) => {
   return userName;
 };
 
-export const extractFaceEmbeddings = async (imageUrl) => {
-  const img = await faceapi.fetchImage(imageUrl);
-  const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptors();
-  if (!detections) {
-    throw new Error("Không thể phát hiện khuôn mặt trong ảnh.");
-  }
-
-  return detections.descriptor;
-}
-
-export const compareEmbeddings = (embedding1, embedding2) => {
-  if (embedding1.length !== embedding2.length) {
-    throw new Error("Hai embeddings phải có cùng chiều dài.");
-  }
-
-  const dotProduct = embedding1.reduce((acc, val, idx) => acc + val * embedding2[idx], 0);
-  const norm1 = Math.sqrt(embedding1.reduce((acc, val) => acc + val * val, 0));
-  const norm2 = Math.sqrt(embedding2.reduce((acc, val) => acc + val * val, 0));
-
-  const cosineSimilarity = dotProduct / (norm1 * norm2);
-  return cosineSimilarity;
-};
-
 export const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
-
-
 

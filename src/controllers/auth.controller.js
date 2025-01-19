@@ -1,15 +1,17 @@
 import bcrypt from "bcryptjs";
 import axios from "axios";
+import * as faceapi from "face-api.js";
 
 import User from "../models/user.model.js";
 import OTP from "../models/otp.models.js";
 import cloudinary from "../config/cloudinary.js";
 import { oauth2client } from "../config/google.js";
-import { sendMail } from "../services/email.service.js";
+import {
+  sendMailSignUp,
+  sendMailResetPassword,
+} from "../services/email.service.js";
 import {
   convertFullName,
-  extractFaceEmbeddings,
-  compareEmbeddings,
   generateOTP,
   generateToken,
 } from "../utils/auth.util.js";
@@ -49,9 +51,13 @@ export const signup = async (req, res) => {
 
       generateToken(user._id, res);
 
-      const { password, ...userWithoutPassword } = user.toObject();
-
-      res.status(201).json({ user: userWithoutPassword });
+      res.status(201).json({
+        _id: user._id,
+        email: user.email,
+        accountType: user.accountType,
+        fullName: user.fullName,
+        userName: user.userName,
+      });
     } else {
       res.status(400).json({ message: "Dữ liệu người dùng không hợp lệ" });
     }
@@ -61,15 +67,19 @@ export const signup = async (req, res) => {
   }
 };
 
-export const sendOTP = async (req, res) => {
+export const sendOTPSignUp = async (req, res) => {
+  const { email } = req.body;
   try {
-    const { email } = req.body;
+    const existingUser = await User.findOne({ email })
+    if (existingUser) {
+      return res.status(400).json({ message: "Người dùng đã tồn tại "})
+    }
 
-    const existingOTP = await OTP.findOne({ email });
+    const existingOTP = await OTP.findOne({ email, otpType: "signup" });
     if (existingOTP) {
       return res
         .status(400)
-        .json({ message: "OTP đã được gửi, vui lòng kiểm tra email của bạn." });
+        .json({ message: "OTP đã được gửi, vui lòng kiểm tra email" });
     }
 
     const otp = generateOTP();
@@ -80,36 +90,38 @@ export const sendOTP = async (req, res) => {
     const newOTP = new OTP({
       email,
       otp: hashedOTP,
+      otpType: "signup",
     });
 
     if (newOTP) {
       await newOTP.save();
 
-      await sendMail(email, otp);
+      await sendMailSignUp(email, otp);
 
-      res.status(200).json({ message: 'OTP đã được gửi thành công.' });
+      res.status(200).json({ message: "OTP đã được gửi thành công." });
     } else {
-      res.status(400).json({ message: "Dữ liệu OTP không hợp lệ" })
+      res.status(400).json({ message: "Dữ liệu OTP không hợp lệ" });
     }
   } catch (err) {
-    console.log(`Lỗi gửi OTP: ${err.message}`);
+    console.log(`Lỗi gửi OTP SignUp: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
-export const verifyOTP = async (req, res) => {
+export const verifyOTPSignUp = async (req, res) => {
+  const { email, otp } = req.body;
   try {
-    const { email, otp } = req.body;
-
-    const otpRecord = await OTP.findOne({ email });
+    const otpRecord = await OTP.findOne({ email, otpType: "signup" });
 
     if (!otpRecord) {
-      return res.status(404).json({ message: 'Không tìm thấy OTP cho email này.' });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy OTP cho email này." });
     }
 
     const isOTPCorrect = await bcrypt.compare(otp, otpRecord.otp);
     if (!isOTPCorrect) {
-      return res.status(400).json({ message: 'OTP không đúng.' });
+      return res.status(400).json({ message: "OTP không đúng." });
     }
 
     await otpRecord.deleteOne();
@@ -143,9 +155,14 @@ export const login = async (req, res) => {
 
     generateToken(user._id, res);
 
-    const { password: _, ...userWithoutPassword } = user.toObject();
-
-    res.status(200).json({ user: userWithoutPassword });
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      accountType: user.accountType,
+      fullName: user.fullName,
+      userName: user.userName,
+      avatar: user.avatar,
+    });
   } catch (err) {
     console.log(`Lỗi xử lý đăng nhập: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -163,9 +180,8 @@ export const logout = (req, res) => {
 };
 
 export const loginGoogle = async (req, res) => {
+  const { code } = req.body;
   try {
-    const { code } = req.body;
-
     if (!code) {
       return res.status(400).json({ message: "Yêu cầu code" });
     }
@@ -202,7 +218,7 @@ export const loginGoogle = async (req, res) => {
       }
     }
 
-    if (!user.accountType === "google") {
+    if (user.accountType !== "google") {
       return res
         .status(400)
         .json({ message: "Email đã được đăng ký, vui lòng nhập mật khẩu" });
@@ -210,108 +226,151 @@ export const loginGoogle = async (req, res) => {
 
     generateToken(user._id, res);
 
-    const { googleId: _, ...userWithoutGoogleId } = user.toObject();
-
-    res.status(200).json({ user: userWithoutGoogleId });
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      accountType: user.accountType,
+      fullName: user.fullName,
+      userName: user.userName,
+      avatar: user.avatar,
+    });
   } catch (err) {
     console.log(`Lỗi ở đăng nhập bằng Google: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
-export const loginFacebook = async (req, res) => {
-  try {
-    const { accessToken } = req.body;
-
-    if (!accessToken) {
-      return res.status(400).json({ message: "Yêu cầu access token" });
-    }
-
-    const userRes = await axios.get(
-      `https://graph.facebook.com/me?access_token=${accessToken}&fields=id,name,picture`
-    );
-    const { id: facebookId, name, picture } = userRes.data;
-
-    let user = await User.findOne({ facebookId });
-
-    if (!user) {
-      const userName = await convertFullName(name);
-
-      const newUser = new User({
-        facebookId,
-        accountType: "facebook",
-        fullName: name,
-        userName,
-        avatar: picture.data.is_silhouette ? undefined : picture.data.url,
-      });
-
-      if (newUser) {
-        user = await newUser.save();
-      } else {
-        return res
-          .status(400)
-          .json({ message: "Dữ liệu người dùng không hợp lệ" });
-      }
-    }
-
-    generateToken(user._id, res);
-
-    const { facebookId: _, ...userWithoutFacebookId } = user.toObject();
-
-    res.status(200).json({ user: userWithoutFacebookId });
-  } catch (err) {
-    console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
-    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
-  }
-};
-
 export const loginFaceId = async (req, res) => {
+  const { faceId } = req.body;
   try {
-    const { faceId } = req.body;
-
     if (!faceId) {
-      return res.status(400).json({ message: "Ảnh FaceID là bắt buộc." });
+      return res
+        .status(400)
+        .json({ message: "Thiếu dữ liệu đặc trưng khuôn mặt" });
     }
 
-    const uploadedEmbeddings = await extractFaceEmbeddings(faceId);
-
-    const users = await User.find({
-      "face.faceEmbeddings": { $exists: true },
-    }).select("-password");
+    const faces = await User.find();
 
     let user = null;
-    for (const check_user of users) {
-      const storedEmbeddings = check_user.face.faceEmbeddings;
 
-      const cosineSimilarity = compareEmbeddings(
-        uploadedEmbeddings,
-        storedEmbeddings
-      );
-
-      if (cosineSimilarity >= 0.8) {
-        user = check_user;
+    for (const face of faces) {
+      const distance = faceapi.euclideanDistance(face.faceId[0], faceId);
+      if (distance < 0.6) {
+        user = face;
         break;
       }
     }
 
-    if (!user) {
-      return res.status(400).json({ message: "Không tìm thấy người dùng" });
+    if (!match) {
+      return res.status(401).json({ message: "Xác thực không thành công" });
     }
 
     generateToken(user._id, res);
 
-    res.status(200).json({ user });
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      accountType: user.accountType,
+      fullName: user.fullName,
+      userName: user.userName,
+      avatar: user.avatar,
+    });
   } catch (err) {
-    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
+    console.log(`Lỗi đăng nhập bằng faceId: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { email, newPassword } = req.body;
+  try {
+    const user = User.findOne({ email })
+
+    if (!user) {
+      return res.status(400).json({ message: "Người dùng không tồn tại" })
+    }
+  } catch (err) {
+    console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+}
+
+export const sendOTPResetPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Người dùng không tồn tại" });
+    }
+
+    if (user.accountType !== "virgo") {
+      return res
+        .status(400)
+        .json({ message: "Tài khoản đăng nhập bằng bên thứ 3" });
+    }
+
+    const existingOTP = await OTP.findOne({ email, otpType: "reset-password" });
+    if (existingOTP) {
+      return res
+        .status(400)
+        .json({ message: "OTP đã được gửi, vui lòng kiểm tra email" });
+    }
+
+    const otp = generateOTP();
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedOTP = await bcrypt.hash(otp, salt);
+
+    const newOTP = new OTP({
+      email,
+      otp: hashedOTP,
+      otpType: "reset-password",
+    });
+
+    if (newOTP) {
+      await newOTP.save();
+
+      await sendMailResetPassword(email, otp);
+
+      res.status(200).json({ message: "OTP đã được gửi thành công." });
+    } else {
+      res.status(400).json({ message: "Dữ liệu OTP không hợp lệ" });
+    }
+  } catch (err) {
+    console.log(`Lỗi gửi OTP SignUp: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const verifyOTPResetPassword = async (req, res) => {
+  const { email, otp } = req.body;
+  try {
+    const otpRecord = await OTP.findOne({ email, otpType: "reset-password" });
+
+    if (!otpRecord) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy OTP cho email này." });
+    }
+
+    const isOTPCorrect = await bcrypt.compare(otp, otpRecord.otp);
+    if (!isOTPCorrect) {
+      return res.status(400).json({ message: "OTP không đúng." });
+    }
+
+    await otpRecord.deleteOne();
+
+    res.status(200).send({ message: "Xác thực OTP thành công" });
+  } catch (err) {
+    console.log(`Lỗi gửi OTP SignUp: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
 export const updateAvatar = async (req, res) => {
+  const { avatar } = req.body;
+  const userId = req.user._id;
   try {
-    const { avatar } = req.body;
-    const userId = req.user._id;
-
     if (!avatar) {
       return res.status(400).json({ message: "Yêu cầu avatar" });
     }
@@ -334,7 +393,14 @@ export const updateAvatar = async (req, res) => {
       { new: true }
     );
 
-    res.status(200).json(updatedUser);
+    res.status(200).json({
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      accountType: updatedUser.accountType,
+      fullName: updatedUser.fullName,
+      userName: updatedUser.userName,
+      avatar: updatedUser.avatar,
+    });
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -342,10 +408,9 @@ export const updateAvatar = async (req, res) => {
 };
 
 export const updateInfo = async (req, res) => {
+  const { fullName, userName } = req.body;
+  const userId = req.user._id;
   try {
-    const { fullName, userName } = req.body;
-    const userId = req.user._id;
-
     if (userName) {
       const checkUserName = await User.findOne({ userName });
       if (checkUserName) {
@@ -361,7 +426,14 @@ export const updateInfo = async (req, res) => {
       new: true,
     });
 
-    res.status(200).json(updatedUser);
+    res.status(200).json({
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      accountType: updatedUser.accountType,
+      fullName: updatedUser.fullName,
+      userName: updatedUser.userName,
+      avatar: updatedUser.avatar,
+    });
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -369,44 +441,81 @@ export const updateInfo = async (req, res) => {
 };
 
 export const updateFaceId = async (req, res) => {
+  const { faceId } = req.body;
   try {
-    const { faceId } = req.body;
+    if (!faceId) {
+      return res
+        .status(400)
+        .json({ message: "Dữ liệu đặc trưng khuôn mặt là bắt buộc" });
+    }
+
     const userId = req.user._id;
 
-    if (!faceId) {
-      return res.status(400).json({ message: "faceId là bắt buộc" });
-    }
-
-    const user = await User.findById(userId);
-
-    if (user.face && user.face.faceUrl) {
-      const publicId = user.face.faceUrl
-        .split("/")
-        .slice(-2)
-        .join("/")
-        .split(".")[0];
-      await cloudinary.uploader.destroy(publicId);
-    }
-
-    const uploadResponse = await cloudinary.uploader.upload(faceId, {
-      public_id: `user_${userId}_faceid`,
-      folder: "users/faceids",
-    });
-
-    const embeddings = await extractFaceEmbeddings(uploadResponse.secure_url);
-
-    const updatedUser = await User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
       userId,
-      {
-        face: {
-          faceUrl: uploadResponse.secure_url,
-          faceEmbeddings: embeddings,
-        },
-      },
+      { faceId: faceId },
       { new: true }
     );
 
-    res.status(200).json(updatedUser);
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      accountType: user.accountType,
+      fullName: user.fullName,
+      userName: user.userName,
+      avatar: user.avatar,
+    });
+  } catch (err) {
+    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updatePassword = async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  let user = req.user;
+  try {
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: "Các trường đều bắt buộc" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
+    }
+
+    if (user.accountType !== "virgo") {
+      return res
+        .status(400)
+        .json({ message: "Người dùng sử dụng tài khoản bên thứ 3" });
+    }
+
+    const isOldPasswordCorrect = await bcrypt.compare(
+      oldPassword,
+      user.password
+    );
+    if (!isOldPasswordCorrect) {
+      return res.status(400).json({ message: "Mật khẩu cũ không khớp" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    user = await User.findByIdAndUpdate(
+      user._id,
+      { password: hashedNewPassword },
+      { new: true }
+    );
+
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      accountType: user.accountType,
+      fullName: user.fullName,
+      userName: user.userName,
+      avatar: user.avatar,
+    });
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });

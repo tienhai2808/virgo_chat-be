@@ -21,7 +21,7 @@ export const protectRoute = async (req, res, next) => {
         .json({ message: "Người dùng chưa đăng nhập - Token không hợp lệ" });
     }
 
-    const user = await User.findById(decoded.userId).select("-password");
+    const user = await User.findById(decoded.userId);
 
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
