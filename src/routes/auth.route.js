@@ -14,6 +14,7 @@ import {
   updatePassword,
   verifyOTPSignUp,
   verifyOTPResetPassword,
+  resetPassword,
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -25,6 +26,7 @@ router.post("/signup/verify-otp", verifyOTPSignUp);
 router.post("/login", login);
 router.post("/logout", logout);
 
+router.put("/reset-password/", resetPassword);
 router.post("/reset-password/send-otp", sendOTPResetPassword);
 router.post("/reset-password/verify-otp", verifyOTPResetPassword);
 

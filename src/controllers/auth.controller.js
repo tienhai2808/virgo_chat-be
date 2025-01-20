@@ -70,9 +70,9 @@ export const signup = async (req, res) => {
 export const sendOTPSignUp = async (req, res) => {
   const { email } = req.body;
   try {
-    const existingUser = await User.findOne({ email })
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Người dùng đã tồn tại "})
+      return res.status(400).json({ message: "Người dùng đã tồn tại " });
     }
 
     const existingOTP = await OTP.findOne({ email, otpType: "signup" });
@@ -284,16 +284,31 @@ export const loginFaceId = async (req, res) => {
 export const resetPassword = async (req, res) => {
   const { email, newPassword } = req.body;
   try {
-    const user = User.findOne({ email })
-
-    if (!user) {
-      return res.status(400).json({ message: "Người dùng không tồn tại" })
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: "Tất cả các trường là bắt buộc" });
     }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    await User.findOneAndUpdate(
+      { email: email },
+      { password: hashedNewPassword },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Đã lấy lại mật khẩu" });
   } catch (err) {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};
 
 export const sendOTPResetPassword = async (req, res) => {
   const { email } = req.body;
@@ -377,13 +392,7 @@ export const updateAvatar = async (req, res) => {
 
     const user = await User.findById(userId);
 
-    if (user.avatar) {
-      const publicId = user.avatar.split("/").slice(-2).join("/").split(".")[0];
-      await cloudinary.uploader.destroy(publicId);
-    }
-
     const uploadResponse = await cloudinary.uploader.upload(avatar, {
-      public_id: `user_${userId}_avatar`,
       folder: "users/avatars",
     });
 
@@ -401,6 +410,11 @@ export const updateAvatar = async (req, res) => {
       userName: updatedUser.userName,
       avatar: updatedUser.avatar,
     });
+
+    if (user.avatar) {
+      const publicId = user.avatar.split("/").slice(-2).join("/").split(".")[0];
+      await cloudinary.uploader.destroy(publicId);
+    }
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
