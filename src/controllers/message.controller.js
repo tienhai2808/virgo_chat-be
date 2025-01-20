@@ -1,19 +1,33 @@
 import cloudinary from "../config/cloudinary.js";
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
+import Room from "../models/room.model.js";
 
-export const getUserForSideBar = async (req, res) => {
+export const getRoomForSideBar = async (req, res) => {
   try {
-    const loggedInUserId = req.user._id;
-    const filteredUser = await User.find({
-      _id: { $ne: loggedInUserId },
-    }).select("-password");
+    const userId = req.user._id;
+    const rooms = await Room.find({
+      "member.user": userId,
+    })
+      .select("name _id roomType lastMessage members")
+      .populate({
+        path: "lastMessage",
+        select: "sender messageType text file createdAt",
+        populate: {
+          path: "sender",
+          select: "fullName",
+        },
+      });
 
-    res.status(200).json(filteredUser);
+    res.status(200).json({ rooms });
   } catch (err) {
     console.log(`Lỗi lấy thông tin người dùng cho SideBar: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
+};
+
+export const createRoom = async (req, res) => {
+  const { userId } = req.body
 };
 
 export const getMessages = async (req, res) => {
@@ -54,9 +68,9 @@ export const sendMessage = async (req, res) => {
       image: imageUrl,
     });
 
-    await newMessage.save()
+    await newMessage.save();
 
-    res.status(201).json(newMessage)
+    res.status(201).json(newMessage);
   } catch (err) {
     console.log(`Lỗi gửi tin nhắn: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });

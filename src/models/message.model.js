@@ -2,16 +2,16 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-    roomId: {
+    room: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Room",
       required: true,
     },
-    senderId: {
+    sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
+    }, 
     text: {
       type: String,
     },
@@ -35,7 +35,7 @@ const messageSchema = new mongoose.Schema(
     },
     reactions: [
       {
-        userId: {
+        user: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
         },

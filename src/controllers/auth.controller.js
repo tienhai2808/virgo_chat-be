@@ -241,7 +241,8 @@ export const loginGoogle = async (req, res) => {
 };
 
 export const loginFaceId = async (req, res) => {
-  const { faceId } = req.body;
+  let { faceId } = req.body;
+  faceId = Object.values(faceId)
   try {
     if (!faceId) {
       return res
@@ -254,14 +255,17 @@ export const loginFaceId = async (req, res) => {
     let user = null;
 
     for (const face of faces) {
-      const distance = faceapi.euclideanDistance(face.faceId[0], faceId);
-      if (distance < 0.6) {
-        user = face;
-        break;
+      if (face.faceId.length > 0) {
+        const distance = faceapi.euclideanDistance(face.faceId, faceId);
+        console.log(distance)
+        if (distance < 0.4) {
+          user = face;
+          break;
+        }
       }
     }
 
-    if (!match) {
+    if (!user) {
       return res.status(401).json({ message: "Xác thực không thành công" });
     }
 
@@ -455,7 +459,8 @@ export const updateInfo = async (req, res) => {
 };
 
 export const updateFaceId = async (req, res) => {
-  const { faceId } = req.body;
+  let { faceId } = req.body;
+  faceId = Object.values(faceId)
   try {
     if (!faceId) {
       return res

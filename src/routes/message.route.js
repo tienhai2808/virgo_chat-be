@@ -1,12 +1,14 @@
 import express from "express";
 
 import { protectRoute } from "../middleware/auth.middleware.js";
-import { getUserForSideBar, getMessages, sendMessage } from "../controllers/message.controller.js";
+import { getRoomForSideBar, getMessages, sendMessage, createRoom } from "../controllers/message.controller.js";
 
 const router = express.Router();
 
-router.get("/users", protectRoute, getUserForSideBar)
-router.get("/:id", protectRoute, getMessages)
+router.get("/rooms", protectRoute, getRoomForSideBar)
+router.get("/rooms/:roomId", protectRoute, getMessages)
+
+router.post("create/room", protectRoute, createRoom)
 
 router.post("/send/:id", protectRoute, sendMessage)
 

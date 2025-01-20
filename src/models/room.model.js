@@ -5,13 +5,13 @@ const roomSchema = new mongoose.Schema(
     name: {
       type: String,
     },
-    ownerId: {
+    owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
     members: [
       {
-        userId: {
+        user: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
         },
@@ -25,7 +25,6 @@ const roomSchema = new mongoose.Schema(
         },
         joinedAt: {
           type: Date,
-          default: Date.now,
         },
       },
     ],
@@ -49,13 +48,8 @@ const roomSchema = new mongoose.Schema(
       },
     },
     lastMessage: {
-      messageId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Message",
-      },
-      sentAt: {
-        type: Date,
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
     },
   },
   { timestamps: true }
