@@ -23,19 +23,13 @@ const roomSchema = new mongoose.Schema(
         nickName: {
           type: String,
         },
-        joinedAt: {
-          type: Date,
-        },
+        _id: false,
       },
     ],
     roomType: {
       type: String,
       enum: ["private", "group"],
       default: "private",
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
     },
     settings: {
       allowFileSharing: {
@@ -52,7 +46,8 @@ const roomSchema = new mongoose.Schema(
       ref: "Message",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
+  { _id: false },
 );
 
 const Room = mongoose.model("Room", roomSchema);

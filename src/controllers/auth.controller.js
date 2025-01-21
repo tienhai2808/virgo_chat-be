@@ -57,6 +57,8 @@ export const signup = async (req, res) => {
         accountType: user.accountType,
         fullName: user.fullName,
         userName: user.userName,
+        avatar: user.avatar,
+        createdAt: user.createdAt,
       });
     } else {
       res.status(400).json({ message: "Dữ liệu người dùng không hợp lệ" });
@@ -162,6 +164,7 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       userName: user.userName,
       avatar: user.avatar,
+      createdAt: user.createdAt,
     });
   } catch (err) {
     console.log(`Lỗi xử lý đăng nhập: ${err.message}`);
@@ -233,6 +236,7 @@ export const loginGoogle = async (req, res) => {
       fullName: user.fullName,
       userName: user.userName,
       avatar: user.avatar,
+      createdAt: user.createdAt,
     });
   } catch (err) {
     console.log(`Lỗi ở đăng nhập bằng Google: ${err.message}`);
@@ -241,8 +245,7 @@ export const loginGoogle = async (req, res) => {
 };
 
 export const loginFaceId = async (req, res) => {
-  let { faceId } = req.body;
-  faceId = Object.values(faceId)
+  const { faceId } = req.body;
   try {
     if (!faceId) {
       return res
@@ -253,14 +256,14 @@ export const loginFaceId = async (req, res) => {
     const faces = await User.find();
 
     let user = null;
+    let minDistance = Infinity;
 
     for (const face of faces) {
       if (face.faceId.length > 0) {
         const distance = faceapi.euclideanDistance(face.faceId, faceId);
-        console.log(distance)
-        if (distance < 0.4) {
+        if (distance < 0.4 && distance < minDistance) {
+          minDistance = distance;
           user = face;
-          break;
         }
       }
     }
@@ -278,6 +281,7 @@ export const loginFaceId = async (req, res) => {
       fullName: user.fullName,
       userName: user.userName,
       avatar: user.avatar,
+      createdAt: user.createdAt,
     });
   } catch (err) {
     console.log(`Lỗi đăng nhập bằng faceId: ${err.message}`);
@@ -394,8 +398,6 @@ export const updateAvatar = async (req, res) => {
       return res.status(400).json({ message: "Yêu cầu avatar" });
     }
 
-    const user = await User.findById(userId);
-
     const uploadResponse = await cloudinary.uploader.upload(avatar, {
       folder: "users/avatars",
     });
@@ -413,12 +415,8 @@ export const updateAvatar = async (req, res) => {
       fullName: updatedUser.fullName,
       userName: updatedUser.userName,
       avatar: updatedUser.avatar,
+      createdAt: updatedUser.createdAt,
     });
-
-    if (user.avatar) {
-      const publicId = user.avatar.split("/").slice(-2).join("/").split(".")[0];
-      await cloudinary.uploader.destroy(publicId);
-    }
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -451,6 +449,7 @@ export const updateInfo = async (req, res) => {
       fullName: updatedUser.fullName,
       userName: updatedUser.userName,
       avatar: updatedUser.avatar,
+      createdAt: updatedUser.createdAt,
     });
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
@@ -459,8 +458,7 @@ export const updateInfo = async (req, res) => {
 };
 
 export const updateFaceId = async (req, res) => {
-  let { faceId } = req.body;
-  faceId = Object.values(faceId)
+  const { faceId } = req.body;
   try {
     if (!faceId) {
       return res
@@ -470,19 +468,20 @@ export const updateFaceId = async (req, res) => {
 
     const userId = req.user._id;
 
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       userId,
       { faceId: faceId },
       { new: true }
     );
 
     res.status(200).json({
-      _id: user._id,
-      email: user.email,
-      accountType: user.accountType,
-      fullName: user.fullName,
-      userName: user.userName,
-      avatar: user.avatar,
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      accountType: updatedUser.accountType,
+      fullName: updatedUser.fullName,
+      userName: updatedUser.userName,
+      avatar: updatedUser.avatar,
+      createdAt: updatedUser.createdAt,
     });
   } catch (err) {
     console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
@@ -492,7 +491,7 @@ export const updateFaceId = async (req, res) => {
 
 export const updatePassword = async (req, res) => {
   const { oldPassword, newPassword } = req.body;
-  let user = req.user;
+  const user = req.user;
   try {
     if (!oldPassword || !newPassword) {
       return res.status(400).json({ message: "Các trường đều bắt buộc" });
@@ -521,11 +520,50 @@ export const updatePassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedNewPassword = await bcrypt.hash(newPassword, salt);
 
-    user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       user._id,
       { password: hashedNewPassword },
       { new: true }
     );
+
+    res.status(200).json({
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      accountType: updatedUser.accountType,
+      fullName: updatedUser.fullName,
+      userName: updatedUser.userName,
+      avatar: updatedUser.avatar,
+      createdAt: updatedUser.createdAt,
+    });
+  } catch (err) {
+    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const getUsers = async (req, res) => {
+  const userId = req.user._id;
+  try {
+    const users = await User.find({ _id: { $ne: userId } }).select("_id fullName userName avatar");
+    res.status(200).json(users);
+  } catch (err) {
+    console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const getUser = async (req, res) => {
+  const { id: userId } = req.params;
+  try {
+    if (!userId) {
+      return res.status(400).json({ message: "Yêu cầu userId" });
+    }
+
+    const user = await User.findOne({ _id: userId });
+
+    if (!user) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+    }
 
     res.status(200).json({
       _id: user._id,
@@ -534,9 +572,10 @@ export const updatePassword = async (req, res) => {
       fullName: user.fullName,
       userName: user.userName,
       avatar: user.avatar,
+      createdAt: user.createdAt,
     });
   } catch (err) {
-    console.log(`Lỗi cập nhật hồ sơ: ${err.message}`);
-    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+    console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" })
   }
-};
+}

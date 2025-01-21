@@ -26,8 +26,48 @@ export const getRoomForSideBar = async (req, res) => {
   }
 };
 
-export const createRoom = async (req, res) => {
-  const { userId } = req.body
+export const createPrivateRoom = async (req, res) => {
+  const { memberId } = req.body;
+  const userId = req.user._id;
+
+  try {
+    if (!memberId) {
+      return res.status(400).json({ message: "Yêu cầu memberId" });
+    }
+    if (memberId == userId) {
+      return res.status(400).json({ message: "Không được lấy id của mình" });
+    }
+
+    const existingRoom = await Room.find({
+      "member.user": { $all: [memberId, userId] },
+      roomType: "private",
+    });
+
+    if (existingRoom) {
+      return res.status(400).json({ message: "Cuộc trò chuyện đã tồn tại" })
+    }
+
+    const newRoom = new Room({
+      members: [
+        {
+          user: userId,
+        },
+        {
+          user: memberId,
+        },
+      ],
+    });
+
+    if (newRoom) {
+      const room = await newRoom.save();
+      res.status(200).json(room);
+    } else {
+      res.status(400).json({ message: "Dữ liệu đầu vào không hợp lệ" });
+    }
+  } catch (err) {
+    console.log(`Lỗi lấy thông tin người dùng cho SideBar: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
 };
 
 export const getMessages = async (req, res) => {
