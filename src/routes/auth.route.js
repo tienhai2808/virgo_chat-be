@@ -15,8 +15,6 @@ import {
   verifyOTPSignUp,
   verifyOTPResetPassword,
   resetPassword,
-  getUsers,
-  getUser,
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -39,8 +37,5 @@ router.put("/update/avatar", protectRoute, updateAvatar);
 router.put("/update/info", protectRoute, updateInfo);
 router.put("/update/face-id", protectRoute, updateFaceId);
 router.put("/update/password", protectRoute, updatePassword);
-
-router.get("/users", protectRoute, getUsers);
-router.get("/users/:id", protectRoute, getUser);
 
 export default router;
