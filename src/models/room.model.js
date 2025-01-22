@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const roomSchema = new mongoose.Schema(
   {
+    notification: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Notification",
+      required: true,
+    },
     name: {
       type: String,
     },

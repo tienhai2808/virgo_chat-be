@@ -310,7 +310,7 @@ export const resetPassword = async (req, res) => {
       { password: hashedNewPassword },
       { new: true }
     );
-
+    
     res.status(200).json({ message: "Đã lấy lại mật khẩu" });
   } catch (err) {
     console.log(`Lỗi ở kiểm tra người dùng: ${err.message}`);

@@ -1,4 +1,4 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 const notificationSchema = new mongoose.Schema(
   {
@@ -7,27 +7,37 @@ const notificationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    receiver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+    receivers: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ["pending", "accepted", "rejected"],
+          default: "pending",
+        },
+        isSeen: {
+          type: Boolean,
+          default: false,
+        },
+        _id: false,
+      },
+    ],
     content: {
       type: String,
       required: true,
     },
-    status: {
+    notificationType: {
       type: String,
-      enum: ["pending", "accepted", "rejected"],
-      default: "pending",
+      enum: ["private", "group"],
+      default: "private",
     },
-    isSeen : {
-      type: Boolean,
-      default: false,
-    }
   },
-  { timestamps: true },
-)
+  { timestamps: true }
+);
 
 const Notification = mongoose.model("Notification", notificationSchema);
 
