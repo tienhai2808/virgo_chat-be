@@ -1,6 +1,7 @@
 import Notification from "../models/notification.model.js";
 import { getReceiverSocketId, io } from "../services/socket.service.js";
 import Room from "../models/room.model.js";
+import Relationship from "../models/relationship.model.js";
 
 export const getNotifications = async (req, res) => {
   const receiverId = req.user._id;
@@ -32,12 +33,6 @@ export const createPrivateNotification = async (req, res) => {
       return res.status(400).json({ message: "Yêu cầu receiverId" });
     }
 
-    const existingNotification = await Notification.findOne({
-      sender: sender._id,
-      "receivers.user": receiverId,
-      notificationType: "private",
-    });
-    
     const content = `${sender.userName} (${sender.fullName}) muốn trò chuyện với bạn`;
     const newNotification = new Notification({
       sender: sender._id,
@@ -149,6 +144,24 @@ export const updateStatusNotification = async (req, res) => {
       { new: true }
     );
 
+    if (status === "accepted" && updatedNotification.notificationType === "private") {
+      const existingRelationship = await Relationship.findOne({
+        $or: [
+          { user1: updatedNotification.sender, user2: receiverId },
+          { user1: receiverId, user2: updatedNotification.sender },
+        ],
+      })
+
+      if (existingRelationship) {
+        const newRelationship = new Relationship({
+          user1: updatedNotification.sender,
+          user2: receiverId,
+        });
+  
+        await newRelationship.save();
+      } 
+    }
+
     const existingRoom = await Room.findOne({ notification: notificationId });
 
     if (existingRoom) {
@@ -164,7 +177,7 @@ export const updateStatusNotification = async (req, res) => {
           notification: notificationId,
           owner:
             updatedNotification.notificationType === "group"
-              ? receiverId
+              ? updatedNotification.sender
               : undefined,
           members: [
             { user: updatedNotification.sender, role: "admin" },

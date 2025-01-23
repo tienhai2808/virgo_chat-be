@@ -16,7 +16,6 @@ const relationshipSchema = new mongoose.Schema(
       type: String,
       enum: ["friend", "block"],
       default: "friend",
-      required: true,
     }
   },
   { timestamps: true }

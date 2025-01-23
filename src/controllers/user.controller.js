@@ -34,8 +34,8 @@ export const getUser = async (req, res) => {
 
     const relationship = await Relationship.findOne({
       $or: [
-        { sender: req.user._id, receiver: userId },
-        { sender: userId, receiver: req.user._id },
+        { user1: req.user._id, user2: userId },
+        { user1: userId, user2: req.user._id },
       ],
     });
 
