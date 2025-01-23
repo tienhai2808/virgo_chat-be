@@ -31,6 +31,13 @@ export const createPrivateNotification = async (req, res) => {
     if (!receiverId) {
       return res.status(400).json({ message: "Yêu cầu receiverId" });
     }
+
+    const existingNotification = await Notification.findOne({
+      sender: sender._id,
+      "receivers.user": receiverId,
+      notificationType: "private",
+    });
+    
     const content = `${sender.userName} (${sender.fullName}) muốn trò chuyện với bạn`;
     const newNotification = new Notification({
       sender: sender._id,
@@ -122,7 +129,8 @@ export const createGroupNotification = async (req, res) => {
 };
 
 export const updateStatusNotification = async (req, res) => {
-  const { notificationId, status } = req.body;
+  const { status } = req.body;
+  const { notificationId } = req.params;
   const receiverId = req.user._id;
   try {
     if (!notificationId || !status) {
@@ -154,7 +162,10 @@ export const updateStatusNotification = async (req, res) => {
       if (status === "accepted") {
         const newRoom = new Room({
           notification: notificationId,
-          owner: updatedNotification.notificationType === "group" ? receiverId : undefined,
+          owner:
+            updatedNotification.notificationType === "group"
+              ? receiverId
+              : undefined,
           members: [
             { user: updatedNotification.sender, role: "admin" },
             { user: receiverId },
@@ -165,7 +176,9 @@ export const updateStatusNotification = async (req, res) => {
       }
     }
 
-    res.status(200).json({ message: "Cập nhật trạng thái thông báo thành công" });
+    res
+      .status(200)
+      .json({ message: "Cập nhật trạng thái thông báo thành công" });
   } catch (err) {
     console.log(`Lỗi cập nhật thông báo: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });

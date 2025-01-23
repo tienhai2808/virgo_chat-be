@@ -12,8 +12,10 @@ import {
 const router = express.Router();
 
 router.get("", protectRoute, getNotifications);
+
 router.post("/private/create", protectRoute, createPrivateNotification);
 router.post("/group/create", protectRoute, createGroupNotification);
+
 router.put("/update/status/:notificationId", protectRoute, updateStatusNotification);
 router.put("/update/seen/", protectRoute, updateSeenNotification);
 
