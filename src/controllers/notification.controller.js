@@ -111,7 +111,7 @@ export const updateStatusNotification = async (req, res) => {
         ],
       })
 
-      if (existingRelationship) {
+      if (!existingRelationship) {
         const newRelationship = new Relationship({
           user1: updatedNotification.sender,
           user2: receiverId,
