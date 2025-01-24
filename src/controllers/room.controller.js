@@ -8,13 +8,17 @@ export const getRooms = async (req, res) => {
       "members.user": userId,
     })
       .select("name _id roomType members")
+      .populate({
+        path: "members.user",
+        select: "_id fullName avatar",
+      })
     
     const roomWithLastMessages = await Promise.all(
       rooms.map(async (room) => {
         const lastMessage = await Message.findOne({ room: room._id })
           .populate({
             path: "sender",
-            select: "fullName",
+            select: "_id fullName",
           })
           .sort({ createdAt: -1 })
           .lean();
