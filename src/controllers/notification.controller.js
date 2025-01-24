@@ -139,7 +139,7 @@ export const updateStatusNotification = async (req, res) => {
               ? updatedNotification.sender
               : undefined,
           members: [
-            { user: updatedNotification.sender, role: "admin" },
+            { user: updatedNotification.sender, role: updatedNotification.notificationType === "group" ? "admin" : "member" },
             { user: receiverId },
           ],
           roomType: updatedNotification.notificationType,
