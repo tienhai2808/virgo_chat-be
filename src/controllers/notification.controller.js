@@ -25,103 +25,62 @@ export const getNotifications = async (req, res) => {
   }
 };
 
-export const createPrivateNotification = async (req, res) => {
-  const { receiverId } = req.body;
+export const createNotification = async (req, res) => {
+  const { receiverIds, roomType, roomName } = req.body;
   const sender = req.user;
-  try {
-    if (!receiverId) {
-      return res.status(400).json({ message: "Yêu cầu receiverId" });
-    }
-
-    const content = `${sender.userName} (${sender.fullName}) muốn trò chuyện với bạn`;
-    const newNotification = new Notification({
-      sender: sender._id,
-      receivers: [
-        {
-          user: receiverId,
-        },
-      ],
-      content,
-    });
-    if (newNotification) {
-      await newNotification.save();
-
-      const newNotificationSerializer = await newNotification.populate({
-        path: "sender",
-        select: "_id fullName userName avatar createdAt",
-      });
-
-      const receiverSocketIds = getReceiverSocketId(receiverId);
-
-      if (receiverSocketIds && receiverSocketIds.length > 0) {
-        receiverSocketIds.forEach((socketId) => {
-          io.to(socketId).emit("newNotification", newNotificationSerializer);
-        });
-      }
-
-      return res.status(200).json({ message: "Gửi thông báo thành công" });
-    } else {
-      return res
-        .status(400)
-        .json({ message: "Dữ liệu thông báo không hợp lệ" });
-    }
-  } catch (err) {
-    console.log(`Lỗi tạo thông báo: ${err.message}`);
-    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
-  }
-};
-
-export const createGroupNotification = async (req, res) => {
-  const { receiverIds, roomName } = req.body;
-  const sender = req.user;
+  
   try {
     if (!receiverIds) {
       return res.status(400).json({ message: "Yêu cầu receiverIds" });
     }
-    const content = `${sender.userName} (${sender.fullName}) mời bạn vào nhóm ${
-      roomName ? roomName : ""
-    }`;
+
+    let content = "";
+    if (roomType === "private") {
+      content = `${sender.userName} (${sender.fullName}) muốn trò chuyện với bạn`;
+    } else {
+      content = `${sender.userName} (${sender.fullName}) mời bạn vào nhóm ${
+        roomName ? roomName : ""
+      }`;
+    }
+
     const newNotification = new Notification({
       sender: sender._id,
       receivers: receiverIds.map((receiverId) => ({
         user: receiverId,
       })),
       content,
-      notificationType: "group",
+      notificationType: roomType,
+    })
+
+    if (!newNotification) {
+      return res.status(400).json({ message: "Dữ liệu thông báo không hợp lệ" });
+    } 
+
+    await newNotification.save();
+
+    const newNotificationSerializer = await newNotification.populate({
+      path: "sender",
+      select: "_id fullName userName avatar createdAt",
     });
-    if (newNotification) {
-      await newNotification.save();
 
-      const newNotificationSerializer = await newNotification.populate({
-        path: "sender",
-        select: "_id fullName userName avatar createdAt",
-      });
-
-      await Promise.all(
-        receiverIds.map(async (receiverId) => {
-          const receiverSocketIds = getReceiverSocketId(receiverId);
-          if (receiverSocketIds && receiverSocketIds.length > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              io.to(socketId).emit(
-                "newNotification",
-                newNotificationSerializer
-              );
-            });
-          }
-        })
-      );
-
-      return res.status(200).json({ message: "Gửi thông báo thành công" });
-    } else {
-      return res
-        .status(400)
-        .json({ message: "Dữ liệu thông báo không hợp lệ" });
-    }
+    await Promise.all(
+      receiverIds.map(async (receiverId) => {
+        const receiverSocketIds = getReceiverSocketId(receiverId);
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit(
+              "newNotification",
+              newNotificationSerializer
+            );
+          });
+        }
+      })
+    );
   } catch (err) {
     console.log(`Lỗi tạo thông báo: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-};
+}
 
 export const updateStatusNotification = async (req, res) => {
   const { status } = req.body;

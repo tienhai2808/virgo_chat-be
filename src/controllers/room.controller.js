@@ -4,7 +4,7 @@ export const getRooms = async (req, res) => {
   const userId = req.user._id;
   try {
     const rooms = await Room.find({
-      "member.user": userId,
+      "members.user": userId,
     })
       .select("name _id roomType lastMessage members")
       .populate({

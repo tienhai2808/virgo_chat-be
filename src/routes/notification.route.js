@@ -3,8 +3,7 @@ import express from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import {
   getNotifications,
-  createPrivateNotification,
-  createGroupNotification,
+  createNotification,
   updateStatusNotification,
   updateSeenNotification,
 } from "../controllers/notification.controller.js";
@@ -13,8 +12,7 @@ const router = express.Router();
 
 router.get("", protectRoute, getNotifications);
 
-router.post("/private/create", protectRoute, createPrivateNotification);
-router.post("/group/create", protectRoute, createGroupNotification);
+router.post("/create", protectRoute, createNotification);
 
 router.put("/update/status/:notificationId", protectRoute, updateStatusNotification);
 router.put("/update/seen/", protectRoute, updateSeenNotification);
