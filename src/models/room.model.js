@@ -46,10 +46,6 @@ const roomSchema = new mongoose.Schema(
         default: false,
       },
     },
-    lastMessage: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Message",
-    },
   },
   { timestamps: true },
   { _id: false },

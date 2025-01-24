@@ -60,12 +60,10 @@ const messageSchema = new mongoose.Schema(
     },
     readAt: {
       type: Date,
-      default: null,
     },
     lifeTime: {
       type: Number,
       sparse: true,
-      default: null,
     },
     isDeleted: {
       type: Boolean,

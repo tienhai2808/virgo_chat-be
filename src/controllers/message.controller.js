@@ -3,23 +3,37 @@ import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
 import Room from "../models/room.model.js";
 
-export const sendMessage = async (req, res) => {
+export const createMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
-    const { id: receiverId } = req.params;
+    const { roomId, text, file, messageReplyId, lifeTime } = req.body;
     const senderId = req.user._id;
 
-    let imageUrl;
+    if (!text && !file) {
+      return res.status(400).json({ message: "Nội dung tin nhắn không được để trống" });
+    }
+
+    let fileUrl, fileName, fileType;
     if (image) {
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url;
+      const uploadResponse = await cloudinary.uploader.upload(file,{
+        resource_type: "auto",
+      });
+      fileUrl = uploadResponse.secure_url;
+      fileType = updateResponse.resource_type;
+      fileName = uploadResponse.original_filename;
     }
 
     const newMessage = new Message({
-      senderId,
-      receiverId,
+      room: roomId,
+      sender: senderId,
       text,
-      image: imageUrl,
+      file: file ? {
+        fileType,
+        fileName,
+        fileUrl,
+      } : undefined,
+      messageType: file ? "file" : "text",
+      replyTo: messageReplyId,
+      lifeTime,
     });
 
     await newMessage.save();
@@ -30,3 +44,7 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const updateMessage = async (req, res) => {
+  console.log("hi");
+}
