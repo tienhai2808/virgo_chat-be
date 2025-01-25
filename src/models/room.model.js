@@ -7,7 +7,7 @@ const roomSchema = new mongoose.Schema(
       ref: "Notification",
       required: true,
     },
-    name: {
+    roomName: {
       type: String,
     },
     owner: {

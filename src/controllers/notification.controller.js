@@ -76,6 +76,8 @@ export const createNotification = async (req, res) => {
         }
       })
     );
+
+    res.status(200).json({ message: "Gửi thông báo thành công" });
   } catch (err) {
     console.log(`Lỗi tạo thông báo: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -91,6 +93,11 @@ export const updateStatusNotification = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Yêu cầu ID và trạng thái cần xét cho thông báo" });
+    }
+
+    const existingNotification = await Notification.findById(notificationId);
+    if (!existingNotification) {
+      return res.status(404).json({ message: "Không tìm thấy thông báo" });
     }
 
     if (!["accepted", "rejected"].includes(status)) {
@@ -132,8 +139,11 @@ export const updateStatusNotification = async (req, res) => {
       }
     } else {
       if (status === "accepted") {
+        const roomName = updatedNotification.content.split("mời bạn vào nhóm ")[1];
+
         const newRoom = new Room({
           notification: notificationId,
+          roomName: roomName ? roomName : undefined,
           owner:
             updatedNotification.notificationType === "group"
               ? updatedNotification.sender
@@ -144,6 +154,7 @@ export const updateStatusNotification = async (req, res) => {
           ],
           roomType: updatedNotification.notificationType,
         });
+        
         await newRoom.save();
       }
     }
@@ -170,7 +181,7 @@ export const updateSeenNotification = async (req, res) => {
       { $set: { "receivers.$.isSeen": true } }
     );
 
-    return res.status(200).json({ message: "Đã xem các thông báo" });
+    res.status(200).json({ message: "Đã xem các thông báo" });
   } catch (err) {
     console.log(`Lỗi cập nhật thông báo: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
