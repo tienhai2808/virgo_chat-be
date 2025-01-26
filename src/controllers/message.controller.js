@@ -19,6 +19,7 @@ export const createMessage = async (req, res) => {
     if (file) {
       const uploadResponse = await cloudinary.uploader.upload(file, {
         resource_type: "auto",
+        folder: "messages"
       });
       fileUrl = uploadResponse.secure_url;
       fileType = uploadResponse.resource_type;

@@ -11,15 +11,14 @@ const messageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    }, 
+    },
     text: {
       type: String,
     },
     file: {
       fileType: {
         type: String,
-        enum: ["image", "video", "audio", "other"],
-        sparse: true,
+        enum: ["image", "video", "raw"],
       },
       fileName: {
         type: String,
