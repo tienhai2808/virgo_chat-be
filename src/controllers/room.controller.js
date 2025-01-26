@@ -52,7 +52,10 @@ export const getRoom = async (req, res) => {
       return res.status(400).json({ message: "Yêu cầu roomId" });
     }
 
-    const room = await Room.findById(roomId);
+    const room = await Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id fullName avatar",
+    });
 
     if (!room) {
       return res.status(404).json({ message: "Phòng không tồn tại" });
