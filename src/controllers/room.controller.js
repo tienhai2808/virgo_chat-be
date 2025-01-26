@@ -77,3 +77,24 @@ export const getRoom = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const deleteRoom = async (req, res) => {
+  const { roomId } = req.params;
+
+  try {
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+
+    await Message.deleteMany({ room: roomId });
+
+    await Room.findByIdAndDelete(roomId);
+
+    res.status(200).json({ message: "Xóa phòng thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa phòng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+}

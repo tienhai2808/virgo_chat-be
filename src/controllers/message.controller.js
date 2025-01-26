@@ -5,8 +5,9 @@ import Room from "../models/room.model.js";
 import { getReceiverSocketId, io } from "../services/socket.service.js";
 
 export const createMessage = async (req, res) => {
+  const { roomId, text, file, messageReplyId, lifeTime } = req.body;
+
   try {
-    const { roomId, text, file, messageReplyId, lifeTime } = req.body;
     const senderId = req.user._id;
 
     if (!text && !file) {
@@ -19,7 +20,7 @@ export const createMessage = async (req, res) => {
     if (file) {
       const uploadResponse = await cloudinary.uploader.upload(file, {
         resource_type: "auto",
-        folder: "messages"
+        folder: "messages",
       });
       fileUrl = uploadResponse.secure_url;
       fileType = uploadResponse.resource_type;
@@ -45,22 +46,24 @@ export const createMessage = async (req, res) => {
     await newMessage.save();
 
     const newMessageSerializer = await Message.findById(newMessage._id)
-    .populate({
-      path: "sender",
-      select: "_id fullName avatar",
-    })
-    .populate({
-      path: "room",
-      select: "members", 
-      populate: {
-        path: "members.user", 
-        select: "_id fullName avatar", 
-      },
-    });
+      .populate({
+        path: "sender",
+        select: "_id fullName avatar",
+      })
+      .populate({
+        path: "room",
+        select: "members",
+        populate: {
+          path: "members.user",
+          select: "_id fullName avatar",
+        },
+      });
 
     await Promise.all(
       newMessageSerializer.room.members.map(async (member) => {
-        const receiverSocketIds = getReceiverSocketId(member.user._id);
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
         if (receiverSocketIds && receiverSocketIds.length > 0) {
           receiverSocketIds.forEach((socketId) => {
             io.to(socketId).emit("newMessage", newMessageSerializer);
