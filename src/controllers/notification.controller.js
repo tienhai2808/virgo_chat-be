@@ -113,15 +113,17 @@ export const updateStatusNotification = async (req, res) => {
     if (status === "accepted" && updatedNotification.notificationType === "private") {
       const existingRelationship = await Relationship.findOne({
         $or: [
-          { user1: updatedNotification.sender, user2: receiverId },
-          { user1: receiverId, user2: updatedNotification.sender },
+          { from: updatedNotification.sender, to: receiverId },
+          { from: receiverId, to: updatedNotification.sender },
         ],
+        relationshipType: "friend",
       })
 
       if (!existingRelationship) {
         const newRelationship = new Relationship({
-          user1: updatedNotification.sender,
-          user2: receiverId,
+          from: updatedNotification.sender,
+          to: receiverId,
+          relationshipType: "friend",
         });
   
         await newRelationship.save();

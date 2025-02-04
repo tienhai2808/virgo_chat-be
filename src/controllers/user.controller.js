@@ -5,9 +5,15 @@ import Relationship from "../models/relationship.model.js";
 export const getUsers = async (req, res) => {
   const currentUserId = req.user._id;
   try {
-    const users = await User.find({ _id: { $ne: currentUserId } }).select(
-      "_id fullName userName avatar"
-    );
+    const blockedUsers = await Relationship.find({
+      to: currentUserId,
+      relationshipType: "block",
+    }).select("from");
+
+    const users = await User.find({
+      _id: { $nin: [currentUserId, ...blockedUsers.map((user) => user.from)] },
+    }).select("_id fullName userName avatar");
+
     res.status(200).json(users);
   } catch (err) {
     console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);
@@ -34,8 +40,8 @@ export const getUser = async (req, res) => {
 
     const relationship = await Relationship.findOne({
       $or: [
-        { user1: req.user._id, user2: userId },
-        { user1: userId, user2: req.user._id },
+        { from: req.user._id, to: userId },
+        { from: userId, to: req.user._id },
       ],
     });
 
@@ -52,7 +58,7 @@ export const getUser = async (req, res) => {
       latestNotificationStatus: notification
         ? notification.receivers[0].status
         : undefined,
-      relationshipStatus: relationship ? relationship.status : undefined,
+      relationshipStatus: relationship ? relationship.relationshipType : undefined,
     });
   } catch (err) {
     console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);

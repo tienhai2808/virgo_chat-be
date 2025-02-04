@@ -2,12 +2,12 @@ import mongoose from "mongoose";
 
 const relationshipSchema = new mongoose.Schema(
   {
-    user1: {
+    from: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    user2: {
+    to: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true

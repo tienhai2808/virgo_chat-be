@@ -80,5 +80,77 @@ export const createMessage = async (req, res) => {
 };
 
 export const updateMessage = async (req, res) => {
-  console.log("hi");
+  const { messageId } = req.params;
+  const { text } = req.body;
+
+  try {
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
+    }
+
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Không có quyền cập nhật tin nhắn" });
+    }
+
+    const updatedMessageSerializer = await Message.findByIdAndUpdate(
+      messageId,
+      { text },
+      { new: true }
+    );
+
+    Promise.all(
+      updatedMessageSerializer.room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("updatedMessage", updatedMessageSerializer);
+          });
+        }
+      })
+    );
+
+    res.status(200).json({ message: "Cập nhật tin nhắn thành công" });
+  } catch (err) {
+    console.log(`Lỗi cập nhật tin nhắn: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const deleteMessage = async (req, res) => {
+  const { messageId } = req.params;
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
+    }
+
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Không có quyền xóa tin nhắn" });
+    }
+
+    await Message.findByIdAndDelete(messageId);
+
+    Promise.all(
+      message.room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(member.user._id.toString());
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("deletedMessage", { messageId });
+          });
+        }
+      })
+    )
+
+    res.status(200).json({ message: "Xóa tin nhắn thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa tin nhắn: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
 };
