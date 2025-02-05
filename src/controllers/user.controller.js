@@ -58,7 +58,7 @@ export const getUser = async (req, res) => {
       latestNotificationStatus: notification
         ? notification.receivers[0].status
         : undefined,
-      relationshipStatus: relationship ? relationship.relationshipType : undefined,
+      relationshipType: relationship ? relationship.relationshipType : undefined,
     });
   } catch (err) {
     console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);

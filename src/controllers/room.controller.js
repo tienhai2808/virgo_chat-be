@@ -1,5 +1,6 @@
 import Room from "../models/room.model.js";
 import Message from "../models/message.model.js";
+import Relationship from "../models/relationship.model.js";
 
 export const getRooms = async (req, res) => {
   const userId = req.user._id;
@@ -47,6 +48,8 @@ export const getRooms = async (req, res) => {
 
 export const getRoom = async (req, res) => {
   const { roomId } = req.params;
+  const currentUserId = req.user._id;
+
   try {
     if (!roomId) {
       return res.status(400).json({ message: "Yêu cầu roomId" });
@@ -61,6 +64,21 @@ export const getRoom = async (req, res) => {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
 
+    let blockedMembers = [];
+
+    const memberIds = room.members.map((member) => member.user._id);
+
+    const blockedRelationships = await Relationship.find({
+      from: currentUserId,
+      to: { $in: memberIds },
+      relationshipType: "block",
+    }).populate({
+      path: "to",
+      select: "_id fullName userName avatar",
+    })
+
+    blockedMembers = blockedRelationships.map((relationship) => relationship.to);
+
     const messages = await Message.find({ room: roomId })
       .populate({
         path: "sender",
@@ -71,7 +89,7 @@ export const getRoom = async (req, res) => {
         select: "_id fullName avatar",
       });
 
-    return res.status(200).json({ room, messages });
+    return res.status(200).json({ room: { ...room.toObject(), blockedMembers }, messages });
   } catch (err) {
     console.log(`Lỗi lấy thông tin phòng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
