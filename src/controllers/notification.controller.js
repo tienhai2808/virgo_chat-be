@@ -189,3 +189,46 @@ export const updateSeenNotification = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const deleteNotification = async (req, res) => {
+  const { notificationId } = req.params;
+  const senderId = req.user._id;
+
+  try {
+    if (!notificationId) {
+      return res.status(400).json({ message: "Yêu cầu notificationId" });
+    }
+
+    const existingNotification = await Notification.findOne({
+      _id: notificationId,
+      sender: senderId,
+    });
+    if (!existingNotification) {
+      return res.status(404).json({ message: "Không tìm thấy thông báo" });
+    }
+
+    const acceptedReceiver = existingNotification.receivers.find(receiver => receiver.status === "accepted");
+
+    if (acceptedReceiver) {
+      return res.status(403).json({ message: "Không thể xóa thông báo vì đã có người nhận chấp nhận" });
+    }
+
+    await Notification.findByIdAndDelete(notificationId);
+
+    await Promise.all(
+      existingNotification.receivers.map(async (receiver) => {
+        const receiverSocketIds = getReceiverSocketId(receiver.user.toString());
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("deletedNotification", notificationId);
+          });
+        }
+      })
+    )
+
+    res.status(200).json({ message: "Xóa thông báo thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa thông báo: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
