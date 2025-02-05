@@ -77,7 +77,7 @@ export const createNotification = async (req, res) => {
       })
     );
 
-    res.status(200).json({ message: "Gửi thông báo thành công" });
+    res.status(200).json(newNotificationSerializer);
   } catch (err) {
     console.log(`Lỗi tạo thông báo: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });

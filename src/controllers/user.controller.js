@@ -35,6 +35,10 @@ export const getUser = async (req, res) => {
       "receivers.user": userId,
       notificationType: "private",
     })
+      .populate({
+        path: "receivers.user",
+        select: "_id fullName userName avatar",
+      })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -55,10 +59,10 @@ export const getUser = async (req, res) => {
       userName: user.userName,
       avatar: user.avatar,
       createdAt: user.createdAt,
-      latestNotificationStatus: notification
-        ? notification.receivers[0].status
+      latestNotification: notification ? notification : undefined,
+      relationshipType: relationship
+        ? relationship.relationshipType
         : undefined,
-      relationshipType: relationship ? relationship.relationshipType : undefined,
     });
   } catch (err) {
     console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);
