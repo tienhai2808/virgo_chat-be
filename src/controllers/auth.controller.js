@@ -400,6 +400,7 @@ export const updateAvatar = async (req, res) => {
 
     const uploadResponse = await cloudinary.uploader.upload(avatar, {
       folder: "users",
+      resource_type: "image",
     });
 
     const updatedUser = await User.findByIdAndUpdate(

@@ -1,44 +1,29 @@
 import cloudinary from "../config/cloudinary.js";
 import Message from "../models/message.model.js";
-import User from "../models/user.model.js";
-import Room from "../models/room.model.js";
 import { getReceiverSocketId, io } from "../services/socket.service.js";
 
 export const createMessage = async (req, res) => {
-  const { roomId, text, file, messageReplyId, lifeTime } = req.body;
+  const { roomId, text, image, messageReplyId, lifeTime } = req.body;
 
   try {
     const senderId = req.user._id;
 
-    if (!text && !file) {
+    if (!text && !image) {
       return res
         .status(400)
         .json({ message: "Nội dung tin nhắn không được để trống" });
     }
 
-    let fileUrl, fileName, fileType;
-    if (file) {
-      const uploadResponse = await cloudinary.uploader.upload(file, {
-        resource_type: "auto",
-        folder: "messages",
-      });
-      fileUrl = uploadResponse.secure_url;
-      fileType = uploadResponse.resource_type;
-      fileName = uploadResponse.original_filename;
-    }
+    const uploadResponse = await cloudinary.uploader.upload(image, {
+      folder: "messages",
+      resource_type: "image",
+    })
 
     const newMessage = new Message({
       room: roomId,
       sender: senderId,
       text,
-      file: file
-        ? {
-            fileType,
-            fileName,
-            fileUrl,
-          }
-        : undefined,
-      messageType: file ? "file" : "text",
+      image: uploadResponse.secure_url,
       replyTo: messageReplyId,
       lifeTime,
     });
