@@ -84,7 +84,17 @@ export const updateMessage = async (req, res) => {
       messageId,
       { text },
       { new: true }
-    );
+    ).populate({
+      path: "sender",
+      select: "_id fullName avatar",
+    }).populate({
+      path: "room",
+      select: "members",
+      populate: {
+        path: "members.user",
+        select: "_id fullName avatar",
+      },
+    });
 
     Promise.all(
       updatedMessageSerializer.room.members.map(async (member) => {
