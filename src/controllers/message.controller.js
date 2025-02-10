@@ -14,16 +14,21 @@ export const createMessage = async (req, res) => {
         .json({ message: "Nội dung tin nhắn không được để trống" });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(image, {
-      folder: "messages",
-      resource_type: "image",
-    })
+    let imageUrl = undefined;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        folder: "messages",
+        resource_type: "image",
+      });
+
+      imageUrl = uploadResponse.secure_url;
+    }
 
     const newMessage = new Message({
       room: roomId,
       sender: senderId,
       text,
-      image: uploadResponse.secure_url,
+      image: imageUrl,
       replyTo: messageReplyId,
       lifeTime,
     });
@@ -84,17 +89,19 @@ export const updateMessage = async (req, res) => {
       messageId,
       { text },
       { new: true }
-    ).populate({
-      path: "sender",
-      select: "_id fullName avatar",
-    }).populate({
-      path: "room",
-      select: "members",
-      populate: {
-        path: "members.user",
+    )
+      .populate({
+        path: "sender",
         select: "_id fullName avatar",
-      },
-    });
+      })
+      .populate({
+        path: "room",
+        select: "members",
+        populate: {
+          path: "members.user",
+          select: "_id fullName avatar",
+        },
+      });
 
     Promise.all(
       updatedMessageSerializer.room.members.map(async (member) => {
@@ -120,7 +127,19 @@ export const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
 
   try {
-    const message = await Message.findById(messageId);
+    const message = await Message.findById(messageId)
+      .populate({
+        path: "sender",
+        select: "_id fullName avatar",
+      })
+      .populate({
+        path: "room",
+        select: "members",
+        populate: {
+          path: "members.user",
+          select: "_id fullName avatar",
+        },
+      });
 
     if (!message) {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
@@ -134,14 +153,16 @@ export const deleteMessage = async (req, res) => {
 
     Promise.all(
       message.room.members.map(async (member) => {
-        const receiverSocketIds = getReceiverSocketId(member.user._id.toString());
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
         if (receiverSocketIds && receiverSocketIds.length > 0) {
           receiverSocketIds.forEach((socketId) => {
             io.to(socketId).emit("deletedMessage", { messageId });
           });
         }
       })
-    )
+    );
 
     res.status(200).json({ message: "Xóa tin nhắn thành công" });
   } catch (err) {
