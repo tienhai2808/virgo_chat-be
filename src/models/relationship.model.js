@@ -10,13 +10,17 @@ const relationshipSchema = new mongoose.Schema(
     to: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
     relationshipType: {
       type: String,
       enum: ["friend", "block"],
       default: "friend",
-    }
+    },
+    room: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Room",
+    },
   },
   { timestamps: true }
 );

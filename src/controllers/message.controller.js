@@ -1,5 +1,6 @@
 import cloudinary from "../config/cloudinary.js";
 import Message from "../models/message.model.js";
+import Room from "../models/room.model.js";
 import { getReceiverSocketId, io } from "../services/socket.service.js";
 
 export const createMessage = async (req, res) => {
@@ -122,6 +123,53 @@ export const updateMessage = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const updateSeenMessage = async (req, res) => {
+  const currentUserId = req.user._id;
+  const { roomId } = req.body;
+
+  try {
+    const room = Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id fullName avatar"
+    });
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" })
+    }
+
+    const checkMember = room.members.find((member) => member.user.toString() === currentUserId)
+
+    if (!checkMember) {
+      return res.status(403).json({ message: "Không có quyền xem tin nhắn" })
+    }
+
+    await Message.updateMany({
+      room: roomId,
+      "viewers.user": { $ne: currentUserId }
+    }, {
+      $push: { viewers: { user: currentUserId, seenAt: new Date() }}
+    })
+
+    Promise.all(
+      room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("updatedSeenMessage", "seenAllMessage");
+          });
+        }
+      })
+    );
+    
+    res.status(200).json({ message: "Đã seen hết tin nhắn" })
+  } catch (err) {
+    console.log(`Lỗi cập nhật tin nhắn: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+}
 
 export const deleteMessage = async (req, res) => {
   const { messageId } = req.params;

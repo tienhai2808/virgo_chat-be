@@ -28,7 +28,7 @@ export const getNotifications = async (req, res) => {
 export const createNotification = async (req, res) => {
   const { receiverIds, roomType, roomName } = req.body;
   const sender = req.user;
-  
+
   try {
     if (!receiverIds) {
       return res.status(400).json({ message: "Yêu cầu receiverIds" });
@@ -50,11 +50,13 @@ export const createNotification = async (req, res) => {
       })),
       content,
       notificationType: roomType,
-    })
+    });
 
     if (!newNotification) {
-      return res.status(400).json({ message: "Dữ liệu thông báo không hợp lệ" });
-    } 
+      return res
+        .status(400)
+        .json({ message: "Dữ liệu thông báo không hợp lệ" });
+    }
 
     await newNotification.save();
 
@@ -68,10 +70,7 @@ export const createNotification = async (req, res) => {
         const receiverSocketIds = getReceiverSocketId(receiverId);
         if (receiverSocketIds && receiverSocketIds.length > 0) {
           receiverSocketIds.forEach((socketId) => {
-            io.to(socketId).emit(
-              "newNotification",
-              newNotificationSerializer
-            );
+            io.to(socketId).emit("newNotification", newNotificationSerializer);
           });
         }
       })
@@ -82,7 +81,7 @@ export const createNotification = async (req, res) => {
     console.log(`Lỗi tạo thông báo: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};
 
 export const updateStatusNotification = async (req, res) => {
   const { status } = req.body;
@@ -110,26 +109,6 @@ export const updateStatusNotification = async (req, res) => {
       { new: true }
     );
 
-    if (status === "accepted" && updatedNotification.notificationType === "private") {
-      const existingRelationship = await Relationship.findOne({
-        $or: [
-          { from: updatedNotification.sender, to: receiverId },
-          { from: receiverId, to: updatedNotification.sender },
-        ],
-        relationshipType: "friend",
-      })
-
-      if (!existingRelationship) {
-        const newRelationship = new Relationship({
-          from: updatedNotification.sender,
-          to: receiverId,
-          relationshipType: "friend",
-        });
-  
-        await newRelationship.save();
-      } 
-    }
-
     const existingRoom = await Room.findOne({ notification: notificationId });
 
     if (existingRoom) {
@@ -141,7 +120,8 @@ export const updateStatusNotification = async (req, res) => {
       }
     } else {
       if (status === "accepted") {
-        const roomName = updatedNotification.content.split("mời bạn vào nhóm ")[1];
+        const roomName =
+          updatedNotification.content.split("mời bạn vào nhóm ")[1];
 
         const newRoom = new Room({
           notification: notificationId,
@@ -151,14 +131,34 @@ export const updateStatusNotification = async (req, res) => {
               ? updatedNotification.sender
               : undefined,
           members: [
-            { user: updatedNotification.sender, role: updatedNotification.notificationType === "group" ? "admin" : "member" },
+            {
+              user: updatedNotification.sender,
+              role:
+                updatedNotification.notificationType === "group"
+                  ? "admin"
+                  : "member",
+            },
             { user: receiverId },
           ],
           roomType: updatedNotification.notificationType,
         });
-        
+
         await newRoom.save();
       }
+    }
+
+    if (
+      status === "accepted" &&
+      updatedNotification.notificationType === "private"
+    ) {
+      const newRelationship = new Relationship({
+        from: updatedNotification.sender,
+        to: receiverId,
+        relationshipType: "friend",
+        room: existingRoom ? existingRoom._id : newRoom._id,
+      });
+
+      await newRelationship.save();
     }
 
     res
@@ -207,10 +207,14 @@ export const deleteNotification = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy thông báo" });
     }
 
-    const acceptedReceiver = existingNotification.receivers.find(receiver => receiver.status === "accepted");
+    const acceptedReceiver = existingNotification.receivers.find(
+      (receiver) => receiver.status === "accepted"
+    );
 
     if (acceptedReceiver) {
-      return res.status(403).json({ message: "Không thể xóa thông báo vì đã có người nhận chấp nhận" });
+      return res.status(403).json({
+        message: "Không thể xóa thông báo vì đã có người nhận chấp nhận",
+      });
     }
 
     await Notification.findByIdAndDelete(notificationId);
@@ -224,7 +228,7 @@ export const deleteNotification = async (req, res) => {
           });
         }
       })
-    )
+    );
 
     res.status(200).json({ message: "Xóa thông báo thành công" });
   } catch (err) {

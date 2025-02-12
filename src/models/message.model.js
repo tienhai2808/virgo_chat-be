@@ -12,6 +12,18 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    viewers: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        seenAt: {
+          type: Date,
+        },
+        _id: false,
+      }
+    ],
     text: {
       type: String,
     },
@@ -37,14 +49,6 @@ const messageSchema = new mongoose.Schema(
     isPinned: {
       type: Boolean,
       default: false,
-    },
-    status: {
-      type: String,
-      enum: ["sent", "delivered", "seen"],
-      default: "sent",
-    },
-    readAt: {
-      type: Date,
     },
     lifeTime: {
       type: Number,

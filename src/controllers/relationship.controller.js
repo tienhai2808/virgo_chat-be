@@ -57,21 +57,29 @@ export const unblockUser = async (req, res) => {
     const to = userId;
 
     const relationship = await Relationship.findOne({
-      from, to, relationshipType: "block"
-    })
+      from,
+      to,
+      relationshipType: "block",
+    });
 
     if (!relationship) {
       return res.status(400).json({ message: "Người dùng chưa bị chặn" });
     }
 
-    await Relationship.deleteOne({ _id: relationship._id });
+    if (relationship.room) {
+      relationship.relationshipType = "friend";
+
+      await relationship.save();
+    } else {
+      await relationship.deleteOne();
+    }
 
     res.status(200).json({ message: "Bỏ chặn người dùng thành công" });
   } catch (err) {
     console.log(`Lỗi bỏ chặn người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};
 
 export const getBlockedUsers = async (req, res) => {
   const currentUserId = req.user._id;
@@ -80,6 +88,9 @@ export const getBlockedUsers = async (req, res) => {
     const blockedUsers = await Relationship.find({
       from: currentUserId,
       relationshipType: "block",
+    }).populate({
+      path: "to",
+      select: "_id fullName avatar",
     });
 
     res.status(200).json(blockedUsers);
@@ -87,4 +98,4 @@ export const getBlockedUsers = async (req, res) => {
     console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};

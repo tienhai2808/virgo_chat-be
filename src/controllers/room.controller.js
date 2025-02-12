@@ -12,8 +12,8 @@ export const getRooms = async (req, res) => {
       .populate({
         path: "members.user",
         select: "_id fullName avatar",
-      })
-    
+      });
+
     const roomWithLastMessages = await Promise.all(
       rooms.map(async (room) => {
         const lastMessage = await Message.findOne({ room: room._id })
@@ -25,17 +25,19 @@ export const getRooms = async (req, res) => {
           .lean();
         return {
           ...room.toObject(),
-          lastMessage: lastMessage ? {
-            text: lastMessage.text,
-            messageType: lastMessage.messageType,
-            file: lastMessage.file,
-            sender: {
-              _id: lastMessage.sender._id,
-              fullName: lastMessage.sender.fullName,
-            },
-            createdAt: lastMessage.createdAt,
-          } : undefined,
-        }
+          lastMessage: lastMessage
+            ? {
+                text: lastMessage.text,
+                messageType: lastMessage.messageType,
+                file: lastMessage.file,
+                sender: {
+                  _id: lastMessage.sender._id,
+                  fullName: lastMessage.sender.fullName,
+                },
+                createdAt: lastMessage.createdAt,
+              }
+            : undefined,
+        };
       })
     );
 
@@ -75,9 +77,11 @@ export const getRoom = async (req, res) => {
     }).populate({
       path: "to",
       select: "_id fullName userName avatar",
-    })
+    });
 
-    blockedMembers = blockedRelationships.map((relationship) => relationship.to);
+    blockedMembers = blockedRelationships.map(
+      (relationship) => relationship.to
+    );
 
     const messages = await Message.find({ room: roomId })
       .populate({
@@ -89,9 +93,83 @@ export const getRoom = async (req, res) => {
         select: "_id fullName avatar",
       });
 
-    return res.status(200).json({ room: { ...room.toObject(), blockedMembers }, messages });
+    return res
+      .status(200)
+      .json({ room: { ...room.toObject(), blockedMembers }, messages });
   } catch (err) {
     console.log(`Lỗi lấy thông tin phòng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateNickName = async (req, res) => {
+  const { roomId } = req.params;
+  const { nickName, userId } = req.body;
+  const currentUserId = req.user._id;
+
+  try {
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+
+    const memberChangeNickName = room.members.find(
+      (member) => member.user.toString() === userId
+    );
+
+    const checkPermission = room.members.find(
+      (member) => member.user.toString() === currentUserId
+    );
+
+    if (!checkPermission || !memberChangeNickName) {
+      return res
+        .status(403)
+        .json({ message: "Không có quyền cập nhật nickname" });
+    }
+
+    memberChangeNickName.nickName = nickName;
+
+    await room.save();
+
+    res.status(200).json({ message: "Cập nhật nickname thành công" });
+  } catch (err) {
+    console.log(`Lỗi cập nhật nickname: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const deleteNickName = async (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  const currentUserId = req.user._id;
+
+  try {
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+
+    const memberChangeNickName = room.members.find(
+      (member) => member.user.toString() === userId
+    );
+
+    const checkPermission = room.members.find(
+      (member) => member.user.toString() === currentUserId
+    );
+
+    if (!checkPermission || !memberChangeNickName) {
+      return res.status(403).json({ message: "Không có quyền xóa nickname" });
+    }
+
+    memberChangeNickName.nickName = undefined;
+
+    await room.save();
+
+    res.status(200).json({ message: "Xóa nickname thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa nickname: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
@@ -108,11 +186,13 @@ export const deleteRoom = async (req, res) => {
 
     await Message.deleteMany({ room: roomId });
 
-    await Room.findByIdAndDelete(roomId);
+    await Relationship.deleteOne({ room: roomId });
+
+    await room.deleteOne();
 
     res.status(200).json({ message: "Xóa phòng thành công" });
   } catch (err) {
     console.log(`Lỗi xóa phòng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};
