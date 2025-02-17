@@ -193,7 +193,7 @@ export const deleteMessage = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
     }
 
-    if (message.sender.toString() !== req.user._id.toString()) {
+    if (message.sender._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Không có quyền xóa tin nhắn" });
     }
 
