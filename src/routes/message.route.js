@@ -1,7 +1,7 @@
 import express from "express";
 
 import { protectRoute } from "../middleware/auth.middleware.js";
-import { createMessage, updateMessage, updateSeenMessage,deleteMessage } from "../controllers/message.controller.js";
+import { createMessage, updateMessage, updateSeenMessage, deleteMessage, deleteAllMessage } from "../controllers/message.controller.js";
 
 const router = express.Router();
 

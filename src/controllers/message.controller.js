@@ -218,3 +218,13 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const deleteAllMessage = async (req, res) => {
+  try {
+    await Message.deleteMany({});
+    res.status(200).json({ message: "Đã xóa tất cả tin nhắn thành công!" });
+  } catch (err) {
+    console.log(`Lỗi xóa tin nhắn: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+}
