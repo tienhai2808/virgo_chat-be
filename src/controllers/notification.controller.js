@@ -109,7 +109,7 @@ export const updateStatusNotification = async (req, res) => {
       { new: true }
     );
 
-    const existingRoom = await Room.findOne({ notification: notificationId });
+    let existingRoom = await Room.findOne({ notification: notificationId });
 
     if (existingRoom) {
       if (status === "accepted") {
@@ -120,8 +120,7 @@ export const updateStatusNotification = async (req, res) => {
       }
     } else {
       if (status === "accepted") {
-        const roomName =
-          updatedNotification.content.split("mời bạn vào nhóm ")[1];
+        const roomName = updatedNotification.content.split("mời bạn vào nhóm ")[1];
 
         const newRoom = new Room({
           notification: notificationId,
@@ -144,6 +143,7 @@ export const updateStatusNotification = async (req, res) => {
         });
 
         await newRoom.save();
+        existingRoom = newRoom;
       }
     }
 
@@ -155,7 +155,7 @@ export const updateStatusNotification = async (req, res) => {
         from: updatedNotification.sender,
         to: receiverId,
         relationshipType: "friend",
-        room: existingRoom ? existingRoom._id : newRoom._id,
+        room: existingRoom ? existingRoom._id : undefined,
       });
 
       await newRelationship.save();

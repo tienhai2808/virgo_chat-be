@@ -12,4 +12,6 @@ router.put("/update/seen/", protectRoute, updateSeenMessage);
 
 router.delete("/delete/:messageId", protectRoute, deleteMessage);
 
+router.delete("/delete/all", deleteAllMessage);
+
 export default router;
