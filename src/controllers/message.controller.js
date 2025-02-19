@@ -36,19 +36,22 @@ export const createMessage = async (req, res) => {
 
     await newMessage.save();
 
-    const newMessageSerializer = await Message.findById(newMessage._id)
-      .populate({
+    const newMessageSerializer = await Message.findById(
+      newMessage._id
+    ).populate([
+      {
         path: "sender",
         select: "_id fullName avatar",
-      })
-      .populate({
+      },
+      {
         path: "room",
         select: "members",
         populate: {
           path: "members.user",
           select: "_id fullName avatar",
         },
-      });
+      },
+    ]);
 
     await Promise.all(
       newMessageSerializer.room.members.map(async (member) => {
@@ -131,25 +134,30 @@ export const updateSeenMessage = async (req, res) => {
   try {
     const room = Room.findById(roomId).populate({
       path: "members.user",
-      select: "_id fullName avatar"
+      select: "_id fullName avatar",
     });
 
     if (!room) {
-      return res.status(404).json({ message: "Không tìm thấy phòng" })
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
 
-    const checkMember = room.members.find((member) => member.user.toString() === currentUserId)
+    const checkMember = room.members.find(
+      (member) => member.user.toString() === currentUserId
+    );
 
     if (!checkMember) {
-      return res.status(403).json({ message: "Không có quyền xem tin nhắn" })
+      return res.status(403).json({ message: "Không có quyền xem tin nhắn" });
     }
 
-    await Message.updateMany({
-      room: roomId,
-      "viewers.user": { $ne: currentUserId }
-    }, {
-      $push: { viewers: { user: currentUserId, seenAt: new Date() }}
-    })
+    await Message.updateMany(
+      {
+        room: roomId,
+        "viewers.user": { $ne: currentUserId },
+      },
+      {
+        $push: { viewers: { user: currentUserId, seenAt: new Date() } },
+      }
+    );
 
     Promise.all(
       room.members.map(async (member) => {
@@ -163,13 +171,13 @@ export const updateSeenMessage = async (req, res) => {
         }
       })
     );
-    
-    res.status(200).json({ message: "Đã seen hết tin nhắn" })
+
+    res.status(200).json({ message: "Đã seen hết tin nhắn" });
   } catch (err) {
     console.log(`Lỗi cập nhật tin nhắn: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};
 
 export const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
@@ -227,4 +235,4 @@ export const deleteAllMessage = async (req, res) => {
     console.log(`Lỗi xóa tin nhắn: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-}
+};

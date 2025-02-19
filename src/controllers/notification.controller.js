@@ -8,15 +8,16 @@ export const getNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({
       "receivers.user": receiverId,
-    })
-      .populate({
+    }).populate([
+      {
         path: "receivers.user",
         select: "_id fullName userName avatar createdAt",
-      })
-      .populate({
+      },
+      {
         path: "sender",
         select: "_id fullName userName avatar createdAt",
-      });
+      },
+    ]);
 
     res.status(200).json({ notifications });
   } catch (err) {
@@ -120,7 +121,8 @@ export const updateStatusNotification = async (req, res) => {
       }
     } else {
       if (status === "accepted") {
-        const roomName = updatedNotification.content.split("mời bạn vào nhóm ")[1];
+        const roomName =
+          updatedNotification.content.split("mời bạn vào nhóm ")[1];
 
         const newRoom = new Room({
           notification: notificationId,

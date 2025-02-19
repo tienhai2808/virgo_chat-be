@@ -10,6 +10,9 @@ const roomSchema = new mongoose.Schema(
     roomName: {
       type: String,
     },
+    roomImage: {
+      type: String,
+    },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -27,6 +30,9 @@ const roomSchema = new mongoose.Schema(
         },
         nickName: {
           type: String,
+        },
+        latestDeletedAt: {
+          type: Date,
         },
         _id: false,
       },

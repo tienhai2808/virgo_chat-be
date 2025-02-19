@@ -1,6 +1,7 @@
 import Room from "../models/room.model.js";
 import Message from "../models/message.model.js";
 import Relationship from "../models/relationship.model.js";
+import { getReceiverSocketId } from "../services/socket.service.js";
 
 export const getRooms = async (req, res) => {
   const userId = req.user._id;
@@ -66,36 +67,46 @@ export const getRoom = async (req, res) => {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
 
-    let blockedMembers = [];
-
     const memberIds = room.members.map((member) => member.user._id);
 
-    const blockedRelationships = await Relationship.find({
-      from: currentUserId,
-      to: { $in: memberIds },
-      relationshipType: "block",
-    }).populate({
-      path: "to",
-      select: "_id fullName userName avatar",
-    });
+    const [blockedRelationships, blockedByRelationships] = await Promise.all([
+      Relationship.find({
+        from: currentUserId,
+        to: { $in: memberIds },
+        relationshipType: "block",
+      }).populate({ path: "to", select: "_id fullName userName avatar" }),
+      Relationship.find({
+        from: { $in: memberIds },
+        to: currentUserId,
+        relationshipType: "block",
+      }).populate({ path: "from", select: "_id fullName userName avatar" }),
+    ]);
 
-    blockedMembers = blockedRelationships.map(
-      (relationship) => relationship.to
-    );
+    const blockedMembers = blockedRelationships.map((rel) => rel.to);
+    const blockedByMembers = blockedByRelationships.map((rel) => rel.from);
 
-    const messages = await Message.find({ room: roomId })
-      .populate({
+    const latestDeletedAt =
+      room.members.find((member) => member.user._id.equals(currentUserId))
+        ?.latestDeletedAt || new Date(0);
+
+    const messages = await Message.find({
+      room: roomId,
+      createdAt: { $gt: latestDeletedAt },
+    }).populate([
+      {
         path: "sender",
         select: "_id fullName avatar",
-      })
-      .populate({
+      },
+      {
         path: "reactions.user",
         select: "_id fullName avatar",
-      });
+      },
+    ]);
 
-    return res
-      .status(200)
-      .json({ room: { ...room.toObject(), blockedMembers }, messages });
+    res.status(200).json({
+      room: { ...room.toObject(), blockedMembers, blockedByMembers },
+      messages,
+    });
   } catch (err) {
     console.log(`Lỗi lấy thông tin phòng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -108,7 +119,10 @@ export const updateNickName = async (req, res) => {
   const currentUserId = req.user._id;
 
   try {
-    const room = await Room.findById(roomId);
+    const room = await Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id",
+    });
 
     if (!room) {
       return res.status(404).json({ message: "Không tìm thấy phòng" });
@@ -128,48 +142,26 @@ export const updateNickName = async (req, res) => {
         .json({ message: "Không có quyền cập nhật nickname" });
     }
 
-    memberChangeNickName.nickName = nickName;
+    memberChangeNickName.nickName = nickName ? nickName : undefined;
 
     await room.save();
+
+    await Promise.all(
+      room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("updatedNickName", room);
+          });
+        }
+      })
+    );
 
     res.status(200).json({ message: "Cập nhật nickname thành công" });
   } catch (err) {
     console.log(`Lỗi cập nhật nickname: ${err.message}`);
-    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
-  }
-};
-
-export const deleteNickName = async (req, res) => {
-  const { roomId } = req.params;
-  const { userId } = req.body;
-  const currentUserId = req.user._id;
-
-  try {
-    const room = await Room.findById(roomId);
-
-    if (!room) {
-      return res.status(404).json({ message: "Không tìm thấy phòng" });
-    }
-
-    const memberChangeNickName = room.members.find(
-      (member) => member.user.toString() === userId
-    );
-
-    const checkPermission = room.members.find(
-      (member) => member.user.toString() === currentUserId
-    );
-
-    if (!checkPermission || !memberChangeNickName) {
-      return res.status(403).json({ message: "Không có quyền xóa nickname" });
-    }
-
-    memberChangeNickName.nickName = undefined;
-
-    await room.save();
-
-    res.status(200).json({ message: "Xóa nickname thành công" });
-  } catch (err) {
-    console.log(`Lỗi xóa nickname: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
@@ -191,6 +183,165 @@ export const deleteRoom = async (req, res) => {
     await room.deleteOne();
 
     res.status(200).json({ message: "Xóa phòng thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa phòng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateRoomName = async (req, res) => {
+  const { roomId } = req.params;
+  const { roomName } = req.body;
+
+  try {
+    const room = Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id",
+    });
+
+    if (!room) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    if (room.roomType === "private") {
+      return res
+        .status(400)
+        .json({ message: "Không thể đổi tên cuộc trò chuyện" });
+    }
+
+    if (room.owner.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Không có quyền sửa tên cuộc trò chuyện" });
+    }
+
+    room.roomName = roomName ? roomName : undefined;
+
+    await room.save();
+
+    await Promise.all(
+      room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("updatedRoomName", room);
+          });
+        }
+      })
+    );
+
+    res
+      .status(200)
+      .json({ message: "Cập nhật tên cuộc trò chuyện thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa phòng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateRoomImage = async (req, res) => {
+  const { roomId } = req.params;
+  const { image } = req.body;
+
+  try {
+    const room = Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id",
+    });
+
+    if (!room) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    if (room.roomType === "private") {
+      return res
+        .status(400)
+        .json({ message: "Không thể thay đổi ảnh của cuộc trò chuyện" });
+    }
+
+    if (room.owner.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Không có quyền thay đổi ảnh của cuộc trò chuyện" });
+    }
+
+    let imageUrl = undefined;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        folder: "rooms",
+        resource_type: "image",
+      });
+
+      imageUrl = uploadResponse.secure_url;
+    }
+
+    room.roomImage = imageUrl;
+
+    await room.save();
+
+    await Promise.all(
+      room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("updatedRoomImage", room);
+          });
+        }
+      })
+    );
+
+    res
+      .status(200)
+      .json({ message: "Cập nhật ảnh cuộc trò chuyện thành công" });
+  } catch (err) {
+    console.log(`Lỗi xóa phòng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const updateRemoveChat = async (req, res) => {
+  const { roomId } = req.params;
+  const currentUserId = req.user._id;
+
+  try {
+    const room = Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id",
+    });
+
+    if (!room) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    const memberRemoveChat = room.members.find(
+      (member) => member.user.toString() === userId
+    );
+
+    const checkPermission = room.members.find(
+      (member) => member.user.toString() === currentUserId
+    );
+
+    if (!memberRemoveChat || !checkPermission) {
+      return res
+        .status(403)
+        .json({ message: "Không có quyền xóa nội dung cuộc trò chuyện" });
+    }
+
+    memberRemoveChat.latestDeletedAt = new Date();
+
+    await room.save();
+
+    res.status(200).json({ message: "Đã xóa nội dung cuộc trò chuyện" });
   } catch (err) {
     console.log(`Lỗi xóa phòng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });

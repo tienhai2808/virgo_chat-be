@@ -10,8 +10,9 @@ router.post("/create", protectRoute, createMessage);
 router.put("/update/:messageId", protectRoute, updateMessage);
 router.put("/update/seen/", protectRoute, updateSeenMessage);
 
-router.delete("/delete/:messageId", protectRoute, deleteMessage);
-
+// Delete DB
 router.delete("/delete/all", deleteAllMessage);
+
+router.delete("/delete/:messageId", protectRoute, deleteMessage);
 
 export default router;
