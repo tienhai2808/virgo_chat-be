@@ -31,6 +31,10 @@ const roomSchema = new mongoose.Schema(
         nickName: {
           type: String,
         },
+        joinedAt: {
+          type: Date,
+          default: Date.now,
+        },
         latestDeletedAt: {
           type: Date,
         },

@@ -8,6 +8,7 @@ import {
   updateRoomName,
   updateRemoveChat,
   updateSeenChat,
+  updateKickMember,
   deleteRoom,
 } from "../controllers/room.controller.js";
 
@@ -20,6 +21,7 @@ router.put("/update/nick-name/:roomId", protectRoute, updateNickName);
 router.put("/update/room-name/:roomId", protectRoute, updateRoomName);
 router.put("/update/remove-chat/:roomId", protectRoute, updateRemoveChat);
 router.put("/update/seen-chat/:roomId", protectRoute, updateSeenChat);
+router.put("/update/kick-member/:roomId", protectRoute, updateKickMember);
 
 router.delete("/delete/:roomId", protectRoute, deleteRoom);
 

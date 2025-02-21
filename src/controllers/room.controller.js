@@ -419,3 +419,37 @@ export const updateSeenChat = async (req, res) => {
   }
 }
 
+export const updateKickMember = async (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  const currentUserId = req.user._id;
+
+  try {
+    const room = await Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id",
+    })
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+
+    const memberKick = room.members.find(
+      (member) => member.user.toString() === userId
+    );
+
+    const checkPermission = room.members.filter(
+      (member) => member.role === "admin"
+    );
+
+    if (!memberKick || memberKick.user.toString() === room.owner.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Không có quyền kick thành viên khỏi phòng" });
+    }
+  } catch (err) {
+    console.log(`Lỗi kick thành viên khỏi phòng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+

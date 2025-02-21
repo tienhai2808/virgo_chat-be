@@ -12,4 +12,3 @@ const router = express.Router();
 router.post("/create", protectRoute, createCall);
 
 router.put("/update/participant/:callId", protectRoute, updateParticipantCall);
-router.put("/update/status/:callId", protectRoute, updateStatusCall);
