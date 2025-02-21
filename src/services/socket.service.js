@@ -11,11 +11,11 @@ const io = new Server(server, {
   },
 });
 
+const userSocketMap = new Map();
+
 export const getReceiverSocketId = (userId) => {
   return userSocketMap.get(userId) || [];
 };
-
-const userSocketMap = new Map();
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;

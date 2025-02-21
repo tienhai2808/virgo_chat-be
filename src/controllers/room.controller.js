@@ -1,7 +1,8 @@
 import Room from "../models/room.model.js";
 import Message from "../models/message.model.js";
 import Relationship from "../models/relationship.model.js";
-import { getReceiverSocketId } from "../services/socket.service.js";
+import { getReceiverSocketId, io } from "../services/socket.service.js";
+import Call from "../models/call.model.js";
 
 export const getRooms = async (req, res) => {
   const userId = req.user._id;
@@ -103,9 +104,17 @@ export const getRoom = async (req, res) => {
       },
     ]);
 
+    const calls = await Call.find({
+      room: roomId,
+      createdAt: { $gt: latestDeletedAt },
+    }).populate({
+      path: "caller",
+      select: "_id fullName avatar",
+    });
+
     res.status(200).json({
       room: { ...room.toObject(), blockedMembers, blockedByMembers },
-      messages,
+      messages, calls,
     });
   } catch (err) {
     console.log(`Lỗi lấy thông tin phòng: ${err.message}`);
@@ -347,3 +356,66 @@ export const updateRemoveChat = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const updateSeenChat = async (req, res) => {
+  const currentUserId = req.user._id;
+  const { roomId } = req.params;
+
+  try {
+    const room = Room.findById(roomId).populate({
+      path: "members.user",
+      select: "_id fullName avatar",
+    });
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+
+    const checkMember = room.members.find(
+      (member) => member.user.toString() === currentUserId
+    );
+
+    if (!checkMember) {
+      return res.status(403).json({ message: "Không có quyền xem tin nhắn" });
+    }
+
+    await Message.updateMany(
+      {
+        room: roomId,
+        "viewers.user": { $ne: currentUserId },
+      },
+      {
+        $push: { viewers: { user: currentUserId, seenAt: new Date() } },
+      }
+    );
+
+    await Call.updateMany(
+      {
+        room: roomId,
+        "viewers.user": { $ne: currentUserId },
+      },
+      {
+        $push: { viewers: { user: currentUserId, seenAt: new Date() } },
+      }
+    );
+
+    Promise.all(
+      room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("updatedSeenMessage", "seenAllMessage");
+          });
+        }
+      })
+    );
+
+    res.status(200).json({ message: "Đã seen hết tin nhắn" });
+  } catch (err) {
+    console.log(`Lỗi cập nhật tin nhắn: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+}
+
