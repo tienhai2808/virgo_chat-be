@@ -148,6 +148,14 @@ export const updateParticipantCall = async (req, res) => {
             io.to(socketId).emit("updatedCall", updatedCallSerializer);
           });
         }
+        if (status === "connection" && currentUserId.toString() !== call.caller.toString()) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("callAccepted", {
+              signal: req.body.signal,
+              peerID: currentUserId.toString(),
+            });
+          });
+        }
       })
     );
 
@@ -157,3 +165,14 @@ export const updateParticipantCall = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+
+export const deleteAllCall = async (req, res) => {
+  try {
+    await Call.deleteMany({});
+    res.status(200).json({ message: "Đã xóa tất cả cuộc gọi thành công!" });
+  } catch (err) {
+    console.log(`Lỗi xóa cuộc gọi: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+}
