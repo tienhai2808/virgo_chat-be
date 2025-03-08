@@ -12,11 +12,6 @@ const userSchema = new mongoose.Schema(
       unique: true, 
       sparse: true,
     },
-    googleId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
     accountType: {
       type: String,
       enum: ["virgo", "google"],
@@ -41,6 +36,10 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String,
       sparse: true,
+    },
+    isSuperUser: {
+      type: Boolean,
+      default: false,
     },
   },
   {

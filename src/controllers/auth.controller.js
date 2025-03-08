@@ -196,7 +196,7 @@ export const loginGoogle = async (req, res) => {
       `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
     );
 
-    const { email, id: googleId, name, picture } = userRes.data;
+    const { email, name, picture } = userRes.data;
 
     let user = await User.findOne({ email });
 
@@ -205,7 +205,6 @@ export const loginGoogle = async (req, res) => {
 
       const newUser = new User({
         email,
-        googleId,
         accountType: "google",
         fullName: name,
         userName,

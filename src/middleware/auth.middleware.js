@@ -35,3 +35,16 @@ export const protectRoute = async (req, res, next) => {
     res.status(500).json({ message: "Lỗi máy chủ cục bộ" });
   }
 };
+
+export const superUserRoute = async (req, res, next) => {
+  try {
+    if (!req.user.isSuperUser) {
+      return res.status(403).json({ message: "Không có quyền truy cập" });
+    }
+
+    next();
+  } catch (err) {
+    console.log(`Lỗi ở superUserRoute middleware: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ cục bộ" });
+  }
+}

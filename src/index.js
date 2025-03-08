@@ -11,6 +11,7 @@ import roomRouters from "./routes/room.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 import relationshipRoutes from "./routes/relationship.route.js";
 import callRoutes from "./routes/call.route.js";
+import adminRoutes from "./routes/admin.route.js";
 import { server, app } from './services/socket.service.js';
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/relationships", relationshipRoutes);
 app.use("/api/calls", callRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 server.listen(PORT, () => {
