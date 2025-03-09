@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: 6,
       required: function () {
-        return !this.googleId 
+        return this.accountType === "virgo"; 
       }
     },
     avatar: {

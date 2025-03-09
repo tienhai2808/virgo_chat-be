@@ -17,6 +17,7 @@ import {
   resetPassword,
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
+import User from "../models/user.model.js";
 
 const router = express.Router();
 

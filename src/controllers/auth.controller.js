@@ -393,18 +393,18 @@ export const updateAvatar = async (req, res) => {
   const { avatar } = req.body;
   const userId = req.user._id;
   try {
-    if (!avatar) {
-      return res.status(400).json({ message: "Yêu cầu avatar" });
-    }
-
-    const uploadResponse = await cloudinary.uploader.upload(avatar, {
-      folder: "users",
-      resource_type: "image",
-    });
+    let avatarUrl = null;
+    if (avatar) {
+      const uploadResponse = await cloudinary.uploader.upload(avatar, {
+        folder: "users",
+        resource_type: "image",
+      });
+      avatarUrl = uploadResponse.secure_url;
+    };
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { avatar: uploadResponse.secure_url },
+      avatarUrl ? { avatar: avatarUrl } : { $unset: { avatar: "" } },
       { new: true }
     );
 

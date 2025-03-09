@@ -44,4 +44,4 @@ io.on("connection", (socket) => {
   });
 });
 
-export { io, server, app };
+export { io, server, app, userSocketMap };
