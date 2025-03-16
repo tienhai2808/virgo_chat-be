@@ -40,6 +40,7 @@ const messageSchema = new mongoose.Schema(
           type: String,
           enum: ["like", "love", "laugh", "sad", "angry"],
         },
+        _id: false,
       },
     ],
     replyTo: {

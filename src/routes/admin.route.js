@@ -5,8 +5,8 @@ import { getAllCharts, getAllUsers, countDimensions } from "../controllers/admin
 
 const router = express.Router();
 
-router.get("/count-dimensions", countDimensions);
+router.get("/count-dimensions", protectRoute, superUserRoute, countDimensions);
 router.get("/all-users", protectRoute, superUserRoute, getAllUsers);
-router.get("/all-charts", getAllCharts);
+router.get("/all-charts", protectRoute, superUserRoute, getAllCharts);
 
 export default router;

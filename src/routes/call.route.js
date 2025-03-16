@@ -13,6 +13,7 @@ router.post("/create", protectRoute, createCall);
 
 router.put("/update/participant/:callId", protectRoute, updateParticipantCall);
 
+//Delete DB
 router.delete("/delete/all", deleteAllCall);
 
 export default router;

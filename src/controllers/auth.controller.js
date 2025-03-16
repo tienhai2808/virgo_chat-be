@@ -1,3 +1,4 @@
+import argon2 from "argon2";
 import bcrypt from "bcryptjs";
 import axios from "axios";
 import * as faceapi from "face-api.js";
@@ -34,8 +35,12 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Email đã tồn tại" });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await argon2.hash(password, {
+      type: argon2.argon2id,
+      memoryCost: 2 ** 16,
+      timeCost: 3,
+      parallelism: 2,
+    });
 
     const userName = await convertFullName(fullName);
 
@@ -150,7 +155,7 @@ export const login = async (req, res) => {
         .json({ message: "Email phải đăng nhập bằng Google" });
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    const isPasswordCorrect = await argon2.verify(user.password, password);
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Mật khẩu không khớp" });
     }
@@ -301,8 +306,12 @@ export const resetPassword = async (req, res) => {
         .json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+    const hashedNewPassword = await argon2.hash(newPassword, {
+      type: argon2.argon2id,
+      memoryCost: 2 ** 16,
+      timeCost: 3,
+      parallelism: 2,
+    });
 
     await User.findOneAndUpdate(
       { email: email },
