@@ -4,6 +4,7 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 import {
   createMessage,
   updateMessage,
+  reactionMessage,
   deleteMessage,
   deleteAllMessage,
 } from "../controllers/message.controller.js";
@@ -13,6 +14,7 @@ const router = express.Router();
 router.post("/create", protectRoute, createMessage);
 
 router.put("/update/:messageId", protectRoute, updateMessage);
+router.put("/reaction/:messageId", protectRoute, reactionMessage);
 
 // Delete DB
 router.delete("/delete/all", deleteAllMessage);

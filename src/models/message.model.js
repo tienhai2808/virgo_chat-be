@@ -38,7 +38,7 @@ const messageSchema = new mongoose.Schema(
         },
         reactionType: {
           type: String,
-          enum: ["like", "love", "laugh", "sad", "angry"],
+          enum: ["like", "love", "haha", "sad", "angry"],
         },
         _id: false,
       },

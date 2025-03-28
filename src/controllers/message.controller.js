@@ -127,6 +127,72 @@ export const updateMessage = async (req, res) => {
   }
 };
 
+export const reactionMessage = async (req, res) => {
+  const { messageId } = req.params;
+  const { reactionType } = req.body;
+  const userId = req.user._id;
+
+  try {
+    const message = await Message.findById(messageId)
+      .populate({
+        path: "sender",
+        select: "_id fullName avatar",
+      })
+      .populate({
+        path: "room",
+        select: "members",
+        populate: {
+          path: "members.user",
+          select: "_id fullName avatar",
+        },
+      })
+      .populate({
+        path: "reactions.user",
+        select: "_id fullName avatar",
+      });
+    
+    if (!message) {
+      return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
+    }
+
+    const existingReaction = message.reactions.find(
+      (reaction) => reaction.user.toString() === userId.toString()
+    );
+
+    if (existingReaction) {
+      if (existingReaction.reactionType === reactionType) {
+        message.reactions = message.reactions.filter(
+          (reaction) => reaction.user.toString() !== userId.toString()
+        );
+      } else {
+        existingReaction.reactionType = reactionType;
+      }
+    } else {
+      message.reactions.push({ user: userId, reactionType });
+    }
+
+    await message.save();
+
+    Promise.all(
+      message.room.members.map(async (member) => {
+        const receiverSocketIds = getReceiverSocketId(
+          member.user._id.toString()
+        );
+        if (receiverSocketIds && receiverSocketIds.length > 0) {
+          receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("reactionMessage", message);
+          });
+        }
+      })
+    );
+
+    res.status(200).json({ message: "Reaction tin nhắn thành công" });
+  } catch (err) {
+    console.log(`Lỗi reaction tin nhắn: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
 export const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
 
