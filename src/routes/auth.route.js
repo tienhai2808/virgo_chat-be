@@ -28,6 +28,7 @@ router.post("/login", login);
 router.post("/logout", logout);
 
 router.put("/reset-password/", resetPassword);
+
 router.post("/reset-password/send-otp", sendOTPResetPassword);
 router.post("/reset-password/verify-otp", verifyOTPResetPassword);
 

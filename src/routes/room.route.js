@@ -17,12 +17,12 @@ const router = express.Router();
 router.get("", protectRoute, getRooms);
 router.get("/:roomId", protectRoute, getRoom);
 
-router.put("/update/:roomId/nick-name/", protectRoute, updateNickName);
-router.put("/update/:roomId/room-name", protectRoute, updateRoomName);
-router.put("/update/:roomId/remove-chat", protectRoute, updateRemoveChat);
-router.put("/update/:roomId/seen-chat", protectRoute, updateSeenChat);
-router.put("/update/:roomId/kick-member", protectRoute, updateKickMember);
+router.put("/:roomId/nick-name/", protectRoute, updateNickName);
+router.put("/:roomId/room-name", protectRoute, updateRoomName);
+router.put("/:roomId/remove-chat", protectRoute, updateRemoveChat);
+router.put("/:roomId/seen-chat", protectRoute, updateSeenChat);
+router.put("/:roomId/kick-member", protectRoute, updateKickMember);
 
-router.delete("/delete/:roomId", protectRoute, deleteRoom);
+router.delete("/:roomId", protectRoute, deleteRoom);
 
 export default router;

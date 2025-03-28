@@ -11,14 +11,14 @@ import {
 
 const router = express.Router();
 
-router.post("/create", protectRoute, createMessage);
+router.post("", protectRoute, createMessage);
 
-router.put("/update/:messageId", protectRoute, updateMessage);
-router.put("/update/:messageId/reaction", protectRoute, reactionMessage);
+router.put("/:messageId", protectRoute, updateMessage);
+router.put("/:messageId/reaction", protectRoute, reactionMessage);
 
 // Delete DB
-router.delete("/delete/all", deleteAllMessage);
+router.delete("/all", deleteAllMessage);
 
-router.delete("/delete/:messageId", protectRoute, deleteMessage);
+router.delete("/:messageId", protectRoute, deleteMessage);
 
 export default router;

@@ -1,14 +1,14 @@
 import express from "express";
 
 import { protectRoute } from "../middleware/auth.middleware.js";
-import { blockUser, getBlockedUsers, unblockUser } from "../controllers/relationship.controller.js";
+import { getBlockedRelationships, createBlockRelationship, unBlockUser } from "../controllers/relationship.controller.js";
 
 const router = express.Router();
 
-router.get("/blocked-users", protectRoute, getBlockedUsers);
+router.get("/blocked", protectRoute, getBlockedRelationships);
 
-router.post("/block-user", protectRoute, blockUser);
+router.post("/block", protectRoute, createBlockRelationship);
 
-router.delete("/unblock-user", protectRoute, unblockUser);
+router.delete("/:blockedUserId/unblock", protectRoute, unBlockUser);
 
 export default router;

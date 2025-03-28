@@ -83,7 +83,7 @@ export const updateMessage = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
     }
 
-    if (message.sender.equals(userId)) {
+    if (!message.sender.equals(userId)) {
       return res
         .status(403)
         .json({ message: "Không có quyền cập nhật tin nhắn" });

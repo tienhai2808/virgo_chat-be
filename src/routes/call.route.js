@@ -9,11 +9,11 @@ import {
 
 const router = express.Router();
 
-router.post("/create", protectRoute, createCall);
+router.post("", protectRoute, createCall);
 
-router.put("/update/:callId/participant", protectRoute, updateParticipantCall);
+router.put("/:callId/participant", protectRoute, updateParticipantCall);
 
 //Delete DB
-router.delete("/delete/all", deleteAllCall);
+router.delete("/all", deleteAllCall);
 
 export default router;

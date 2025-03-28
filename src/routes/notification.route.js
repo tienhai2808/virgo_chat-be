@@ -13,11 +13,11 @@ const router = express.Router();
 
 router.get("", protectRoute, getNotifications);
 
-router.post("/create", protectRoute, createNotification);
+router.post("", protectRoute, createNotification);
 
-router.put("/update/:notificationId/status", protectRoute, updateStatusNotification);
-router.put("/update/seen/", protectRoute, updateSeenNotification);
+router.put("/:notificationId/status", protectRoute, updateStatusNotification);
+router.put("/seen", protectRoute, updateSeenNotification);
 
-router.delete("/delete/:notificationId", protectRoute, deleteNotification);
+router.delete("/:notificationId", protectRoute, deleteNotification);
 
 export default router;

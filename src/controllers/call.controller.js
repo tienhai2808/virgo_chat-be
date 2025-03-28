@@ -87,8 +87,9 @@ export const updateParticipantCall = async (req, res) => {
     }
 
     if (status === "connection") {
-      const checkParticipant = call.participants.find((participant) =>
-        participant.user.equals(currentUserId)
+      const checkParticipant = call.participants.find(
+        (participant) =>
+          participant.user.equals(currentUserId)
       );
 
       if (checkParticipant) {
@@ -101,13 +102,14 @@ export const updateParticipantCall = async (req, res) => {
 
       await call.save();
     } else {
-      if (call.caller.toString() === currentUserId.toString()) {
+      if (call.caller.equals(currentUserId)) {
         call.status = "missed";
       } else {
-        call.participants = call.participants.filter((participant) =>
-          participant.user.equals(currentUserId)
+        call.participants = call.participants.filter(
+          (participant) =>
+            !participant.user.equals(currentUserId)
         );
-
+  
         if (call.participants.length === 0) {
           call.status = "ended";
           call.endedAt = new Date();
@@ -146,10 +148,7 @@ export const updateParticipantCall = async (req, res) => {
             io.to(socketId).emit("updatedCall", updatedCallSerializer);
           });
         }
-        if (
-          status === "connection" &&
-          call.caller.equals(currentUserId)
-        ) {
+        if (status === "connection" && !call.caller.equals(currentUserId)) {
           receiverSocketIds.forEach((socketId) => {
             io.to(socketId).emit("callAccepted", {
               signal: req.body.signal,
@@ -167,6 +166,7 @@ export const updateParticipantCall = async (req, res) => {
   }
 };
 
+
 export const deleteAllCall = async (req, res) => {
   try {
     await Call.deleteMany({});
@@ -175,4 +175,4 @@ export const deleteAllCall = async (req, res) => {
     console.log(`Lỗi xóa cuộc gọi: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
-};
+}

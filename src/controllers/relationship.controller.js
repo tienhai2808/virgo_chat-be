@@ -1,6 +1,6 @@
 import Relationship from "../models/relationship.model.js";
 
-export const blockUser = async (req, res) => {
+export const createBlockRelationship = async (req, res) => {
   const { userId } = req.body;
 
   try {
@@ -45,16 +45,16 @@ export const blockUser = async (req, res) => {
   }
 };
 
-export const unblockUser = async (req, res) => {
-  const { userId } = req.body;
+export const unBlockUser = async (req, res) => {
+  const { blockedUserId } = req.params;
 
   try {
-    if (!userId) {
-      return res.status(400).json({ message: "Yêu cầu userId" });
+    if (!blockedUserId) {
+      return res.status(400).json({ message: "Yêu cầu blockedUserId" });
     }
 
     const from = req.user._id;
-    const to = userId;
+    const to = blockedUserId;
 
     const relationship = await Relationship.findOne({
       from,
@@ -81,7 +81,7 @@ export const unblockUser = async (req, res) => {
   }
 };
 
-export const getBlockedUsers = async (req, res) => {
+export const getBlockedRelationships = async (req, res) => {
   const currentUserId = req.user._id;
 
   try {
