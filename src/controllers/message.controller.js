@@ -75,6 +75,7 @@ export const createMessage = async (req, res) => {
 export const updateMessage = async (req, res) => {
   const { messageId } = req.params;
   const { text } = req.body;
+  const userId = req.user._id;
 
   try {
     const message = await Message.findById(messageId);
@@ -82,7 +83,7 @@ export const updateMessage = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
     }
 
-    if (message.sender.toString() !== req.user._id.toString()) {
+    if (message.sender.equals(userId)) {
       return res
         .status(403)
         .json({ message: "Không có quyền cập nhật tin nhắn" });
@@ -139,14 +140,14 @@ export const reactionMessage = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
     }
 
-    const existingReaction = message.reactions.find(
-      (reaction) => reaction.user.toString() === userId.toString()
+    const existingReaction = message.reactions.find((reaction) =>
+      reaction.user.equals(userId)
     );
 
     if (existingReaction) {
       if (existingReaction.reactionType === reactionType) {
         message.reactions = message.reactions.filter(
-          (reaction) => reaction.user.toString() !== userId.toString()
+          (reaction) => !reaction.user.equals(userId)
         );
       } else {
         existingReaction.reactionType = reactionType;
@@ -191,28 +192,20 @@ export const reactionMessage = async (req, res) => {
 
 export const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
+  const userId = req.user._id;
 
   try {
-    const message = await Message.findById(messageId).populate([
-      {
-        path: "sender",
-        select: "_id fullName avatar",
-      },
-      {
-        path: "room",
-        select: "members",
-        populate: {
-          path: "members.user",
-          select: "_id fullName avatar",
-        },
-      },
-    ]);
+    const message = await Message.findById(messageId).populate({
+      path: "room",
+      select: "members",
+      populate: { path: "members.user", select: "_id" },
+    });
 
     if (!message) {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
     }
 
-    if (message.sender._id.toString() !== req.user._id.toString()) {
+    if (!message.sender.equals(userId)) {
       return res.status(403).json({ message: "Không có quyền xóa tin nhắn" });
     }
 

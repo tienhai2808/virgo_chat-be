@@ -17,11 +17,11 @@ const router = express.Router();
 router.get("", protectRoute, getRooms);
 router.get("/:roomId", protectRoute, getRoom);
 
-router.put("/update/nick-name/:roomId", protectRoute, updateNickName);
-router.put("/update/room-name/:roomId", protectRoute, updateRoomName);
-router.put("/update/remove-chat/:roomId", protectRoute, updateRemoveChat);
-router.put("/update/seen-chat/:roomId", protectRoute, updateSeenChat);
-router.put("/update/kick-member/:roomId", protectRoute, updateKickMember);
+router.put("/update/:roomId/nick-name/", protectRoute, updateNickName);
+router.put("/update/:roomId/room-name", protectRoute, updateRoomName);
+router.put("/update/:roomId/remove-chat", protectRoute, updateRemoveChat);
+router.put("/update/:roomId/seen-chat", protectRoute, updateSeenChat);
+router.put("/update/:roomId/kick-member", protectRoute, updateKickMember);
 
 router.delete("/delete/:roomId", protectRoute, deleteRoom);
 

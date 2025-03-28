@@ -14,7 +14,7 @@ const router = express.Router();
 router.post("/create", protectRoute, createMessage);
 
 router.put("/update/:messageId", protectRoute, updateMessage);
-router.put("/reaction/:messageId", protectRoute, reactionMessage);
+router.put("/update/:messageId/reaction", protectRoute, reactionMessage);
 
 // Delete DB
 router.delete("/delete/all", deleteAllMessage);

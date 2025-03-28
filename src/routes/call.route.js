@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.post("/create", protectRoute, createCall);
 
-router.put("/update/participant/:callId", protectRoute, updateParticipantCall);
+router.put("/update/:callId/participant", protectRoute, updateParticipantCall);
 
 //Delete DB
 router.delete("/delete/all", deleteAllCall);

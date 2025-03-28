@@ -15,7 +15,7 @@ router.get("", protectRoute, getNotifications);
 
 router.post("/create", protectRoute, createNotification);
 
-router.put("/update/status/:notificationId", protectRoute, updateStatusNotification);
+router.put("/update/:notificationId/status", protectRoute, updateStatusNotification);
 router.put("/update/seen/", protectRoute, updateSeenNotification);
 
 router.delete("/delete/:notificationId", protectRoute, deleteNotification);
