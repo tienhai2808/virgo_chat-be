@@ -399,7 +399,7 @@ export const updateSeenChat = async (req, res) => {
       }
     );
 
-    Promise.all(
+    await Promise.all(
       room.members.map(async (member) => {
         const receiverSocketIds = getReceiverSocketId(
           member.user._id.toString()

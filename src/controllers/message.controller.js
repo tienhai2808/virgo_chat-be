@@ -107,7 +107,7 @@ export const updateMessage = async (req, res) => {
       },
     ]);
 
-    Promise.all(
+    await Promise.all(
       updatedMessageSerializer.room.members.map(async (member) => {
         const receiverSocketIds = getReceiverSocketId(
           member.user._id.toString()
@@ -133,24 +133,8 @@ export const reactionMessage = async (req, res) => {
   const userId = req.user._id;
 
   try {
-    const message = await Message.findById(messageId)
-      .populate({
-        path: "sender",
-        select: "_id fullName avatar",
-      })
-      .populate({
-        path: "room",
-        select: "members",
-        populate: {
-          path: "members.user",
-          select: "_id fullName avatar",
-        },
-      })
-      .populate({
-        path: "reactions.user",
-        select: "_id fullName avatar",
-      });
-    
+    const message = await Message.findById(messageId);
+
     if (!message) {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
     }
@@ -171,16 +155,28 @@ export const reactionMessage = async (req, res) => {
       message.reactions.push({ user: userId, reactionType });
     }
 
-    await message.save();
+    const updatedMessageSerializer = await Message.findByIdAndUpdate(
+      messageId,
+      { reactions: message.reactions },
+      { new: true }
+    ).populate([
+      { path: "sender", select: "_id fullName avatar" },
+      {
+        path: "room",
+        select: "members",
+        populate: { path: "members.user", select: "_id fullName avatar" },
+      },
+      { path: "reactions.user", select: "_id fullName avatar" },
+    ]);
 
-    Promise.all(
-      message.room.members.map(async (member) => {
+    await Promise.all(
+      updatedMessageSerializer.room.members.map(async (member) => {
         const receiverSocketIds = getReceiverSocketId(
           member.user._id.toString()
         );
         if (receiverSocketIds && receiverSocketIds.length > 0) {
           receiverSocketIds.forEach((socketId) => {
-            io.to(socketId).emit("reactionMessage", message);
+            io.to(socketId).emit("reactionMessage", updatedMessageSerializer);
           });
         }
       })
@@ -197,19 +193,20 @@ export const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
 
   try {
-    const message = await Message.findById(messageId)
-      .populate({
+    const message = await Message.findById(messageId).populate([
+      {
         path: "sender",
         select: "_id fullName avatar",
-      })
-      .populate({
+      },
+      {
         path: "room",
         select: "members",
         populate: {
           path: "members.user",
           select: "_id fullName avatar",
         },
-      });
+      },
+    ]);
 
     if (!message) {
       return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
@@ -221,7 +218,7 @@ export const deleteMessage = async (req, res) => {
 
     await Message.findByIdAndDelete(messageId);
 
-    Promise.all(
+    await Promise.all(
       message.room.members.map(async (member) => {
         const receiverSocketIds = getReceiverSocketId(
           member.user._id.toString()
