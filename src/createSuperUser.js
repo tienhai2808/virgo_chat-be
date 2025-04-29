@@ -1,8 +1,9 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import User from "./models/user.model.js";
-import argon2 from "argon2";
 import inquirer from "inquirer";
+import { hashPassword } from "./utils/auth.util.js";
+
 dotenv.config();
 
 mongoose.connect(process.env.MONGODB_URI);
@@ -16,8 +17,7 @@ const createSuperUser = async () => {
         name: "userName",
         message: "Username:",
         type: "input",
-        validate: (input) =>
-          input ? true : "Username không được để trống!",
+        validate: (input) => (input ? true : "Username không được để trống!"),
       },
       {
         name: "email",
@@ -30,8 +30,7 @@ const createSuperUser = async () => {
         name: "fullName",
         message: "Full Name:",
         type: "input",
-        validate: (input) =>
-          input ? true : "Full Name không được để trống!",
+        validate: (input) => (input ? true : "Full Name không được để trống!"),
       },
       {
         name: "password",
@@ -59,18 +58,11 @@ const createSuperUser = async () => {
     const existingUser = await User.findOne({ $or: [{ email }, { userName }] });
 
     if (existingUser) {
-      console.log(
-        "Email hoặc Username đã tồn tại! Hãy chọn thông tin khác."
-      );
+      console.log("Email hoặc Username đã tồn tại! Hãy chọn thông tin khác.");
       return;
     }
 
-    const hashedPassword = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 2 ** 16,
-      timeCost: 3,
-      parallelism: 2,
-    });
+    const hashedPassword = await hashPassword(password);
 
     const newSuperUser = new User({
       userName,

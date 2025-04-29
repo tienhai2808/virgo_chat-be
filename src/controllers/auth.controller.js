@@ -15,6 +15,7 @@ import {
   convertFullName,
   generateOTP,
   generateToken,
+  hashPassword,
 } from "../utils/auth.util.js";
 
 export const signup = async (req, res) => {
@@ -35,12 +36,7 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Email đã tồn tại" });
     }
 
-    const hashedPassword = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 2 ** 16,
-      timeCost: 3,
-      parallelism: 2,
-    });
+    const hashedPassword = await hashPassword(password);
 
     const userName = await convertFullName(fullName);
 
@@ -306,12 +302,7 @@ export const resetPassword = async (req, res) => {
         .json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
     }
 
-    const hashedNewPassword = await argon2.hash(newPassword, {
-      type: argon2.argon2id,
-      memoryCost: 2 ** 16,
-      timeCost: 3,
-      parallelism: 2,
-    });
+    const hashedNewPassword = await hashPassword(newPassword);
 
     await User.findOneAndUpdate(
       { email: email },

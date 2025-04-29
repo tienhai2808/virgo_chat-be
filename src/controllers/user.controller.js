@@ -21,6 +21,32 @@ export const getUsers = async (req, res) => {
   }
 };
 
+export const searchUsers = async (req, res) => {
+  const { q } = req.query;
+  try {
+    if (!q) {
+      return res.status(400).json({ message: "Yêu cầu truyền tham số" });
+    }
+    const users = await User.find({
+      $or: [
+        { userName: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+        { fullName: { $regex: q, $options: "i" } },
+      ],
+    }).select("_id fullName userName avatar");
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng nào" });
+    }
+
+    res.status(200).json(users);
+    console.log(q);
+  } catch (err) {
+    console.log(`Lỗi tìm người dùng: ${err.message}`);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
 export const getUser = async (req, res) => {
   const { userId } = req.params;
   try {

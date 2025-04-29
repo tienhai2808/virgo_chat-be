@@ -6,7 +6,7 @@ import cors from "cors";
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
-import userRouters from "./routes/user.router.js";
+import userRouters from "./routes/user.route.js";
 import roomRouters from "./routes/room.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 import relationshipRoutes from "./routes/relationship.route.js";
