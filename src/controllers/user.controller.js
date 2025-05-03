@@ -4,45 +4,49 @@ import Relationship from "../models/relationship.model.js";
 
 export const getUsers = async (req, res) => {
   const currentUserId = req.user._id;
+  const { q, page = 1, limit = 10 } = req.query;
   try {
+    const currentPage = Math.max(1, parseInt(page));
+    const perPage = Math.min(parseInt(limit), 50);
+    const skip = (currentPage - 1) * perPage;
+
     const blockedUsers = await Relationship.find({
       to: currentUserId,
       relationshipType: "block",
     }).select("from");
 
-    const users = await User.find({
-      _id: { $nin: [currentUserId, ...blockedUsers.map((user) => user.from)] },
-    }).select("_id fullName userName avatar");
+    const blockedIds = blockedUsers.map((u) => u.from);
 
-    res.status(200).json(users);
+    const filter = {
+      _id: { $nin: [currentUserId, ...blockedIds] },
+      isSuperUser: { $ne: true },
+    };
+
+    if (q && q.trim() !== "") {
+      const regex = new RegExp(q.trim(), "i");
+      filter.$or = [{ userName: regex }, { email: regex }, { fullName: regex }];
+    }
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select("_id fullName userName avatar")
+        .skip(skip)
+        .limit(perPage)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      data: users,
+      meta: {
+        total,
+        page: currentPage,
+        limit: perPage,
+        totalPages: Math.ceil(total / perPage),
+      },
+    });
   } catch (err) {
     console.log(`Lỗi lấy thông tin người dùng: ${err.message}`);
-    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
-  }
-};
-
-export const searchUsers = async (req, res) => {
-  const { q } = req.query;
-  try {
-    if (!q) {
-      return res.status(400).json({ message: "Yêu cầu truyền tham số" });
-    }
-    const users = await User.find({
-      $or: [
-        { userName: { $regex: q, $options: "i" } },
-        { email: { $regex: q, $options: "i" } },
-        { fullName: { $regex: q, $options: "i" } },
-      ],
-    }).select("_id fullName userName avatar");
-
-    if (users.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy người dùng nào" });
-    }
-
-    res.status(200).json(users);
-    console.log(q);
-  } catch (err) {
-    console.log(`Lỗi tìm người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };

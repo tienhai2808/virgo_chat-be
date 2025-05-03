@@ -13,15 +13,13 @@ export const countDimensions = async (req, res) => {
     });
     const imageMessageInCloud = await countImagesInFolder("messages");
 
-    res
-      .status(200)
-      .json({
-        userCount,
-        superUserCount,
-        onlineUserCount,
-        imageMessageCount,
-        imageMessageInCloud,
-      });
+    res.status(200).json({
+      userCount,
+      superUserCount,
+      onlineUserCount,
+      imageMessageCount,
+      imageMessageInCloud,
+    });
   } catch (err) {
     console.log(`Lỗi đêm các chiều: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
@@ -29,9 +27,36 @@ export const countDimensions = async (req, res) => {
 };
 
 export const getAllUsers = async (req, res) => {
+  const { q, page = 1, limit = 10 } = req.query;
   try {
-    const users = await User.find({ isSuperUser: false }).select("-password");
-    res.status(200).json(users);
+    const currentPage = Math.max(1, parseInt(page));
+    const perPage = Math.min(parseInt(10), 50);
+    const skip = (currentPage - 1) * perPage;
+
+    let filter = {};
+    if (q && q.trim() !== "") {
+      const regex = new RegExp(q.trim(), "i");
+      filter.$or = [{ userName: regex }, { email: regex }, { fullName: regex }];
+    }
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select("-password -faceId -__v")
+        .skip(skip)
+        .limit(perPage)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      data: users,
+      meta: {
+        total,
+        page: currentPage,
+        limit: perPage,
+        totalPages: Math.ceil(total / perPage),
+      },
+    });
   } catch (err) {
     console.log(`Lỗi lấy tất cả người dùng: ${err.message}`);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
