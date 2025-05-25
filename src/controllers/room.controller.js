@@ -31,7 +31,7 @@ export const getRooms = async (req, res) => {
             ? {
                 text: lastMessage.text,
                 messageType: lastMessage.messageType,
-                file: lastMessage.file,
+                image: lastMessage.image,
                 sender: {
                   _id: lastMessage.sender._id,
                   fullName: lastMessage.sender.fullName,
