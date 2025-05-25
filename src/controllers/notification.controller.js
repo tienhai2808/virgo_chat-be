@@ -35,7 +35,7 @@ export const createNotification = async (req, res) => {
       return res.status(400).json({ message: "Yêu cầu receiverIds" });
     }
 
-    const existingNotification = await Notification.findOne({
+    const existingNotifications = await Notification.find({
       sender: sender._id,
       "receivers.user": { $all: receiverIds },
       notificationType: roomType,
@@ -51,7 +51,7 @@ export const createNotification = async (req, res) => {
 
       if (notificationsWithPending.length > 0) {
         return res.status(400).json({
-          message: "Tất cả người nhận đều đang chờ, không thể gửi lại lời mời",
+          message: "Bạn đã gửi lời mời này trước đó",
         });
       }
     }
