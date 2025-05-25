@@ -35,6 +35,27 @@ export const createNotification = async (req, res) => {
       return res.status(400).json({ message: "Yêu cầu receiverIds" });
     }
 
+    const existingNotification = await Notification.findOne({
+      sender: sender._id,
+      "receivers.user": { $all: receiverIds },
+      notificationType: roomType,
+      receivers: { $size: receiverIds.length },
+    });
+    if (existingNotifications.length > 0) {
+      const notificationsWithPending = existingNotifications.filter(
+        (notification) =>
+          notification.receivers.every(
+            (receiver) => receiver.status === "pending"
+          )
+      );
+
+      if (notificationsWithPending.length > 0) {
+        return res.status(400).json({
+          message: "Tất cả người nhận đều đang chờ, không thể gửi lại lời mời",
+        });
+      }
+    }
+
     let content = "";
     if (roomType === "private") {
       content = `${sender.userName} (${sender.fullName}) muốn trò chuyện với bạn`;
