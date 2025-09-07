@@ -17,7 +17,7 @@ export const createMessage = async (req, res) => {
     let imageUrl = undefined;
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
-        folder: "messages",
+        folder: "virgo_chat/messages",
         resource_type: "image",
       });
 

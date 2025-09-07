@@ -396,7 +396,7 @@ export const updateAvatar = async (req, res) => {
     let avatarUrl = null;
     if (avatar) {
       const uploadResponse = await cloudinary.uploader.upload(avatar, {
-        folder: "users",
+        folder: "virgo_chat/users",
         resource_type: "image",
       });
       avatarUrl = uploadResponse.secure_url;
